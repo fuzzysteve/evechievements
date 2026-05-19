@@ -20,6 +20,7 @@ final class EsiService
         'esi-location.read_location.v1',
         'esi-location.read_ship_type.v1',
         'esi-characters.read_corporation_roles.v1',
+        'esi-assets.read_assets.v1',
     ];
 
     public function __construct(private readonly LoggerInterface $logger)
@@ -49,10 +50,22 @@ final class EsiService
     public function getKillmailHeaders(int $id, string $t, int $p = 1): array {
         return $this->get("characters/{$id}/killmails/recent/", $t, ['page' => $p]);
     }
-    public function getWalletJournal(int $id, string $t, int $p = 1): array {
-        return $this->get("characters/{$id}/wallet/journal/", $t, ['page' => $p]);
-    }
     public function getLocation(int $id, string $t): array { return $this->get("characters/{$id}/location/", $t); }
+
+    public function getWalletBalance(int $id, string $t): float
+    {
+        $options = [
+            'query'   => ['datasource' => 'tranquility'],
+            'headers' => ['Authorization' => "Bearer {$t}"],
+        ];
+        $response = $this->http->get("characters/{$id}/wallet/", $options);
+        return (float) (string) $response->getBody();
+    }
+
+    public function getAssets(int $id, string $t, int $p = 1): array
+    {
+        return $this->get("characters/{$id}/assets/", $t, ['page' => $p]);
+    }
 
     private function get(string $path, ?string $token = null, array $query = []): array
     {

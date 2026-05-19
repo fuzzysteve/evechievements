@@ -3,59 +3,140 @@
 {% block content %}
 <div class="dashboard">
     <header class="dashboard__header">
-        <p class="dashboard__eyebrow">◇ YOUR REGISTRY</p>
-        <h1 class="dashboard__title">{{ pilot.name }}</h1>
-        {% if pilot.corporation_name %}<p class="dashboard__corp">{{ pilot.corporation_name }}</p>{% endif %}
-    </header>
-
-    <div class="dashboard__grid">
-        <section class="dashboard__card">
-            <h2 class="section-title">OVERVIEW</h2>
-            <div class="stat-row">
-                {% if stats.total_sp %}<div class="stat"><span class="stat__value">{{ (stats.total_sp / 1000000)|number_format(1) }}M</span><span class="stat__label">SKILL POINTS</span></div>{% endif %}
-                <div class="stat"><span class="stat__value">{{ stats.kills ?? 0 }}</span><span class="stat__label">KILLS</span></div>
-                <div class="stat"><span class="stat__value">{{ stats.losses ?? 0 }}</span><span class="stat__label">LOSSES</span></div>
-                <div class="stat"><span class="stat__value">{{ stats.corps_count ?? 0 }}</span><span class="stat__label">CORPS</span></div>
-            </div>
-        </section>
-
-        <section class="dashboard__card">
-            <h2 class="section-title">VISIBILITY</h2>
+        <div class="dashboard__portrait">
+            <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=128" alt="{{ pilot.name }}">
+        </div>
+        <div class="dashboard__identity">
+            <p class="dashboard__eyebrow">◇ YOUR REGISTRY</p>
+            <h1 class="dashboard__title">{{ pilot.name }}</h1>
+            {% if pilot.corporation_name %}
+            <p class="dashboard__corp">
+                {{ pilot.corporation_name }}
+                {% if pilot.corporation_ticker %}[{{ pilot.corporation_ticker }}]{% endif %}
+                {% if pilot.alliance_name %}
+                 · {{ pilot.alliance_name }}
+                {% if pilot.alliance_ticker %}[{{ pilot.alliance_ticker }}]{% endif %}
+                {% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="dashboard__visibility">
             <form method="POST" action="/dashboard/visibility">
-                <label class="toggle">
-                    <input type="checkbox" name="is_public" value="1" {% if pilot.is_public %}checked{% endif %} onchange="this.form.submit()">
-                    <span class="toggle__label">Public profile</span>
-                </label>
+                <button type="submit" class="btn btn--{{ pilot.is_public ? 'outline' : 'ghost' }}">
+                    {{ pilot.is_public ? '⊙ PUBLIC' : '⊘ PRIVATE' }}
+                </button>
             </form>
             {% if pilot.is_public %}
-            <p class="dashboard__profile-link">
-                Your profile: <a href="/pilot/{{ pilot.id|url_encode }}">/pilot/{{ pilot.id }}</a>
-            </p>
+            <a href="/pilot/{{ pilot.name|url_encode }}" class="dashboard__profile-link">view public profile →</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="dashboard__sections">
+
+        {# ── Skills ───────────────────────────────────────────────────────── #}
+        <section class="data-section">
+            <div class="data-section__header">
+                <h2 class="section-title">◇ SKILLS</h2>
+                <a href="/auth/fetch/skills" class="btn btn--outline btn--sm">
+                    {{ session.fetched.skills is defined ? '↻ REFRESH' : '→ LOAD' }}
+                </a>
+            </div>
+
+            {% if session.fetched.skills is defined %}
+            <div class="data-section__body">
+                <div class="stat-row">
+                    <div class="stat">
+                        <span class="stat__value">{{ (session.fetched.skills.total_sp / 1000000)|number_format(1) }}M</span>
+                        <span class="stat__label">TOTAL SP</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__value">{{ session.fetched.skills.skills|length }}</span>
+                        <span class="stat__label">SKILLS TRAINED</span>
+                    </div>
+                </div>
+
+                <table class="skill-table">
+                <thead>
+                    <tr>
+                        <th>Skill</th>
+                        <th>Active</th>
+                        <th>Trained</th>
+                        <th>SP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for skill in session.fetched.skills.skills %}
+                    <tr>
+                        <td>{{ skill.skill_name }}</td>
+                        <td>
+                            {% for i in 1..5 %}
+                            <span class="skill-pip skill-pip--{{ i <= skill.active_skill_level ? 'active' : (i <= skill.trained_skill_level ? 'trained' : 'empty') }}"></span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% for i in 1..5 %}
+                            <span class="skill-pip skill-pip--{{ i <= skill.trained_skill_level ? 'filled' : 'empty' }}"></span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ (skill.skillpoints_in_skill / 1000)|number_format(0) }}K</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="data-section__empty">Authorise ESI to load your skill data.</p>
             {% endif %}
         </section>
 
-        <section class="dashboard__card dashboard__card--full">
-            <h2 class="section-title">YOUR TROPHIES ({{ trophies|length }})</h2>
-            <div class="trophy-grid">
-                {% for trophy in trophies %}
-                <div class="trophy-card trophy-card--{{ trophy.rarity }}">
-                    <div class="trophy-card__icon-area"><div class="trophy-card__icon"></div></div>
-                    <div class="trophy-card__body">
-                        <span class="trophy-card__rarity">{{ trophy.rarity|upper }}</span>
-                        <p class="trophy-card__name">{{ trophy.name }}</p>
-                        <p class="trophy-card__meta">{{ trophy.category|upper }} · YC {{ trophy.earned_at|date("Y.m.d") }}</p>
-                    </div>
-                </div>
-                {% else %}
-                <p class="empty-state">No trophies yet. Your data is being processed.</p>
-                {% endfor %}
+        {# ── Wallet ───────────────────────────────────────────────────────── #}
+        <section class="data-section">
+            <div class="data-section__header">
+                <h2 class="section-title">◇ WALLET</h2>
+                <a href="/auth/fetch/wallet" class="btn btn--outline btn--sm">
+                    {{ session.fetched.wallet is defined ? '↻ REFRESH' : '→ LOAD' }}
+                </a>
             </div>
+
+            {% if session.fetched.wallet is defined %}
+            <div class="data-section__body">
+                <div class="stat">
+                    <span class="stat__value">{{ session.fetched.wallet.balance|eve_number }} ISK</span>
+                    <span class="stat__label">WALLET BALANCE</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="data-section__empty">Authorise ESI to load your wallet balance.</p>
+            {% endif %}
         </section>
+
+        {# ── Assets ───────────────────────────────────────────────────────── #}
+        <section class="data-section">
+            <div class="data-section__header">
+                <h2 class="section-title">◇ ASSETS</h2>
+                <a href="/auth/fetch/assets" class="btn btn--outline btn--sm">
+                    {{ session.fetched.assets is defined ? '↻ REFRESH' : '→ LOAD' }}
+                </a>
+            </div>
+
+            {% if session.fetched.assets is defined %}
+            <div class="data-section__body">
+                <div class="stat">
+                    <span class="stat__value">{{ session.fetched.assets.count|number_format }}</span>
+                    <span class="stat__label">ASSET LINES</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="data-section__empty">Authorise ESI to load your assets.</p>
+            {% endif %}
+        </section>
+
     </div>
 
     <div class="dashboard__actions">
-        <a href="/dashboard/sync" class="btn btn--outline">↻ FORCE SYNC</a>
-        <a href="/auth/logout"    class="btn btn--ghost">LOGOUT</a>
+        <a href="/auth/logout" class="btn btn--ghost">LOGOUT</a>
     </div>
 </div>
 {% endblock %}
+

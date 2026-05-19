@@ -4,7 +4,7 @@ namespace App;
 
 use App\Controller\{AuthController, BrowseController, HomeController, ProfileController};
 use App\Model\PilotRepository;
-use App\Service\{AuthService, EsiService, SyncService, TrophyService};
+use App\Service\{AuthService, EsiService, DataFetchService, TrophyService};
 use App\Config\TwigFactory;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -40,6 +40,10 @@ final class Router
             $method === 'GET'  && $path === '/auth/logout'
                 => $this->authCtrl()->logout(),
 
+            $method === 'GET'  && str_starts_with($path, '/auth/fetch/')
+                => $this->authCtrl()->fetchSection(substr($path, 12)),
+
+
             $method === 'GET'  && $path === '/browse'
                 => (new BrowseController($this->twig, $this->pilots))->index(),
 
@@ -65,15 +69,16 @@ final class Router
     {
         $log = new Logger('evechievements');
         $log->pushHandler(new StreamHandler(
-            __DIR__ . '/../var/log/app.log', Logger::DEBUG
+            ROOT . '/logs/app.log', Logger::DEBUG
         ));
         return $log;
     }
-
     private function authCtrl(): AuthController
     {
         return new AuthController(
-            new AuthService()
+            new AuthService(),
+            new DataFetchService(new EsiService($this->logger), $this->logger),
+            $this->pilots
         );
     }
 }
