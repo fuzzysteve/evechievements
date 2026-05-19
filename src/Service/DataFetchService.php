@@ -264,7 +264,7 @@ final class DataFetchService
             $typeName   = $typeNames[$typeId] ?? "Unknown #{$typeId}";
 
             // Accumulate value
-            $adjustedPrice = $prices[$typeId]['adjusted_price'] ?? 0;
+            $adjustedPrice = $prices[$typeId]['average_price'] ?? 0;
             $totalValue   += $adjustedPrice * $quantity;
 
             // Group by location

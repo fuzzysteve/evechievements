@@ -35,15 +35,10 @@ final class PilotRepository
     {
         $offset = ($page - 1) * $perPage;
         $stmt   = $this->db->prepare(<<<SQL
-            SELECT p.*,
-                   COUNT(pt.trophy_id) AS trophy_count,
-                   SUM(CASE WHEN t.rarity = 'epic' THEN 1 ELSE 0 END) AS epic_count
+            SELECT p.*
             FROM pilots p
-            LEFT JOIN pilot_trophies pt ON pt.pilot_id = p.id
-            LEFT JOIN trophies t ON t.id = pt.trophy_id
             WHERE p.is_public = true
             GROUP BY p.id
-            ORDER BY trophy_count DESC, p.updated_at DESC
             LIMIT :limit OFFSET :offset
         SQL);
         $stmt->bindValue(':limit',  $perPage, PDO::PARAM_INT);

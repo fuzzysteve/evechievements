@@ -15,7 +15,7 @@
             <div class="pilot-thumb__info">
                 <p class="pilot-thumb__name">{{ pilot.name }}</p>
                 {% if pilot.corporation_name %}<p class="pilot-thumb__corp">{{ pilot.corporation_name }}</p>{% endif %}
-                <p class="pilot-thumb__trophies">{{ pilot.trophy_count ?? 0 }} trophies</p>
+                {% if pilot.alliance_name %}<p class="pilot-thumb__corp">{{ pilot.alliance_name }}</p>{% endif %}
             </div>
         </a>
         {% else %}

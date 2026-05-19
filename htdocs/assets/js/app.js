@@ -28,4 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+
+
+    document.querySelectorAll('.section-toggle').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const target = document.getElementById(this.dataset.target);
+            target.classList.toggle('collapsed');
+            this.textContent = target.classList.contains('collapsed') ? '▸' : '▾';
+        });
+    });
 });

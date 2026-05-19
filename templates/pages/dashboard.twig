@@ -25,7 +25,7 @@
                 </button>
             </form>
             {% if pilot.is_public %}
-            <a href="/pilot/{{ pilot.name|url_encode }}" class="dashboard__profile-link">view public profile →</a>
+            <a href="/pilot/{{ pilot.id|url_encode }}" class="dashboard__profile-link">view public profile →</a>
             {% endif %}
         </div>
     </header>
@@ -34,6 +34,7 @@
     <div class="alert alert--success">Display selections saved.</div>
     {% endif %}
 
+                <form method="POST" action="/dashboard/display">
     <div class="dashboard__sections">
 
         {# ── Wallet ───────────────────────────────────────────────────────── #}
@@ -56,7 +57,6 @@
             {% endif %}
         </section>
 
-                <form method="POST" action="/dashboard/display">
         {# ── Assets ───────────────────────────────────────────────────────── #}
         <section class="data-section">
             <div class="data-section__header">
@@ -64,8 +64,10 @@
                 <a href="/auth/fetch/assets" class="btn btn--outline btn--sm">
                     {{ session.fetched.assets is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
+                <button type="button" class="section-toggle" data-target="section-assets">▾</button>
             </div>
 
+        <div id="section-assets" class="section-collapsible">
             {% if session.fetched.assets is defined %}
             {% set assetData = session.fetched.assets %}
             <div class="data-section__body">
@@ -137,6 +139,7 @@
             {% else %}
             <p class="data-section__empty">Authorise ESI to load your assets.</p>
             {% endif %}
+        <div>
         </section>
 
         {# ── Skills / Certs / Masteries ───────────────────────────────────── #}
@@ -146,8 +149,10 @@
                 <a href="/auth/fetch/skills" class="btn btn--outline btn--sm">
                     {{ session.fetched.skills is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
+                <button type="button" class="section-toggle" data-target="section-skills">▾</button>
             </div>
 
+        <div id="section-skills" class="section-collapsible">
             {% if session.fetched.skills is defined %}
             <div class="data-section__body">
 
@@ -290,6 +295,16 @@
                     </div>
                     {% endif %}
 
+            </div>
+            {% else %}
+            <p class="data-section__empty">Authorise ESI to load skills, certificates and masteries.</p>
+            {% endif %}
+        </section>
+            </div>
+
+    </div>
+
+    <div class="dashboard__actions">
                     <div class="form-actions">
                         <div class="display-toggles">
                             <label class="display-toggle">
@@ -315,16 +330,6 @@
                     </div>
 
                 </form>
-            </div>
-            {% else %}
-            <p class="data-section__empty">Authorise ESI to load skills, certificates and masteries.</p>
-            {% endif %}
-        </section>
-
-    </div>
-
-    <div class="dashboard__actions">
-        <a href="/auth/logout" class="btn btn--ghost">LOGOUT</a>
     </div>
 </div>
 {% endblock %}

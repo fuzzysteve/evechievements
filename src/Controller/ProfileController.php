@@ -18,7 +18,7 @@ final class ProfileController
     /** Public profile: /pilot/{name} */
     public function show(string $name): void
     {
-        $pilot = $this->pilots->findByName($name);
+        $pilot = $this->pilots->findById(intval($name));
         if ($pilot === null) {
             http_response_code(404);
             echo $this->twig->render('pages/404.twig', ['search' => $name]);
