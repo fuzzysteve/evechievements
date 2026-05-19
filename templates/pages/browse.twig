@@ -8,10 +8,9 @@
     </header>
     <div class="pilot-grid">
         {% for pilot in pilots %}
-        <a href="/pilot/{{ pilot.name|url_encode }}" class="pilot-thumb">
+        <a href="/pilot/{{ pilot.id|url_encode }}" class="pilot-thumb">
             <div class="pilot-thumb__portrait">
-                {% if pilot.portrait_64 %}<img src="{{ pilot.portrait_64 }}" alt="{{ pilot.name }}">
-                {% else %}<div class="pilot-thumb__portrait-placeholder"></div>{% endif %}
+                <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=64" alt="{{ pilot.name }}">
             </div>
             <div class="pilot-thumb__info">
                 <p class="pilot-thumb__name">{{ pilot.name }}</p>

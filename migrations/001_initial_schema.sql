@@ -26,7 +26,11 @@ CREATE TABLE IF NOT EXISTS pilots (
     profile_bio     TEXT,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_sync_at    TIMESTAMPTZ
+    last_sync_at    TIMESTAMPTZ,
+    isk             BIGINT DEFAULT -1,
+    sp              BIGINT DEFAULT -1,
+    alliance_ticker VARCHAR(20),
+    corporation_ticker VARCHAR(20)
 );
 
 CREATE INDEX idx_pilots_name ON pilots(name);

@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\PilotRepository;
+use App\Service\EsiService;
 use App\Service\TrophyService;
 use App\Config\Database;
 use Twig\Environment;
@@ -12,13 +13,13 @@ final class ProfileController
     public function __construct(
         private readonly Environment     $twig,
         private readonly PilotRepository $pilots,
-        private readonly TrophyService   $trophies
+	private readonly TrophyService   $trophies,
     ) {}
 
     /** Public profile: /pilot/{name} */
-    public function show(string $name): void
+    public function show(string $id): void
     {
-        $pilot = $this->pilots->findByName($name);
+        $pilot = $this->pilots->findById(intval($id));
         if ($pilot === null) {
             http_response_code(404);
             echo $this->twig->render('pages/404.twig', ['search' => $name]);
@@ -32,48 +33,58 @@ final class ProfileController
         }
 
         $db      = Database::connect();
-        $stats   = $this->pilots->getStats($pilot['id']);
-        $trophys = $this->trophies->getPilotTrophies($pilot['id']);
+	$stats   = $this->pilots->getStats($pilot['id']);
+
 
         // Skill queue (top 5)
-        $queue = $db->prepare(
-            'SELECT * FROM skill_queue WHERE pilot_id = ? ORDER BY queue_position ASC LIMIT 5'
-        );
-        $queue->execute([$pilot['id']]);
 
         // Corp history
-        $corps = $db->prepare(
-            'SELECT * FROM corp_history WHERE pilot_id = ? ORDER BY start_date DESC LIMIT 10'
-        );
-        $corps->execute([$pilot['id']]);
 
         echo $this->twig->render('pages/profile.twig', [
             'pilot'        => $pilot,
             'stats'        => $stats,
-            'trophies'     => $trophys,
-            'skill_queue'  => $queue->fetchAll(),
-            'corp_history' => $corps->fetchAll(),
             'is_own'       => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
         ]);
     }
 
     /** Dashboard: /dashboard (requires auth) */
     public function dashboard(): void
-    {
-        $pilotId = $_SESSION['pilot_id'] ?? null;
+    {   
+	$esi = new EsiService(new \Monolog\Logger('esi'));    
+	$pilotId = $_SESSION['pilot_id'] ?? null;
         if ($pilotId === null) {
             header('Location: /');
             exit;
         }
 
-        $pilot   = $this->pilots->findById($pilotId);
+	$pilot = $this->pilots->findById($pilotId);
+
+        if ($pilot === null) {
+	    $pilot = $this->pilots->createById($pilotId,$esi);
+        }
+
+
+
         $stats   = $this->pilots->getStats($pilotId);
-        $trophys = $this->trophies->getPilotTrophies($pilotId);
 
         echo $this->twig->render('pages/dashboard.twig', [
             'pilot'    => $pilot,
             'stats'    => $stats,
-            'trophies' => $trophys,
         ]);
+    }
+    public function updateVisibility(): void
+    {
+        $pilotId = $_SESSION['pilot_id'] ?? null;
+        if ($pilotId === null) {
+            header('Location: /');
+            exit;
+	}
+
+        $pilot = $this->pilots->findById($pilotId);
+        $this->pilots->setPublic($pilotId, !$pilot['is_public']);
+ 
+    
+        header('Location: /dashboard');
+        exit;
     }
 }

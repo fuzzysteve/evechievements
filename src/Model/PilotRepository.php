@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Model;
 
 use App\Config\Database;
+use App\Service\EsiService;
 use PDO;
 
 final class PilotRepository
@@ -30,32 +31,53 @@ final class PilotRepository
         return $row ?: null;
     }
 
-    /**
-     * Create or update a pilot row after OAuth login.
-     */
-    public function upsert(array $data): array
-    {
-        $this->db->prepare(<<<SQL
-            INSERT INTO pilots (id, name, access_token, refresh_token, token_expires, token_scopes, updated_at)
-            VALUES (:id, :name, :access, :refresh, :expires, :scopes, NOW())
-            ON CONFLICT (id) DO UPDATE SET
-                name          = EXCLUDED.name,
-                access_token  = EXCLUDED.access_token,
-                refresh_token = EXCLUDED.refresh_token,
-                token_expires = EXCLUDED.token_expires,
-                token_scopes  = EXCLUDED.token_scopes,
-                updated_at    = NOW()
-        SQL)->execute([
-            'id'      => $data['id'],
-            'name'    => $data['name'],
-            'access'  => $data['access_token'],
-            'refresh' => $data['refresh_token'],
-            'expires' => $data['token_expires'],
-            'scopes'  => '{' . implode(',', $data['scopes'] ?? []) . '}',
-        ]);
-        return $this->findById($data['id']);
-    }
 
+
+    public function createById(int $characterId, EsiService $esi): array
+    {
+        $char    = $esi->getCharacter($characterId);
+    
+        $corpName     = null;
+        $allianceName = null;
+
+        if (isset($char['corporation_id'])) {
+            $corp     = $esi->getCorporation($char['corporation_id']);
+        $corpName = $corp['name'] ?? null;
+            $corpTicker  = $corp['ticker'] ?? null;
+        }
+        if (isset($char['alliance_id'])) {
+            $alliance     = $esi->getAlliance($char['alliance_id']);
+        $allianceName = $alliance['name'] ?? null;
+        $allianceTicker = $alliance['ticker'] ?? null;
+        }
+
+        $this->db->prepare(<<<SQL
+            INSERT INTO pilots
+                 (id, name, corporation_id, corporation_name, alliance_id, alliance_name,
+                 corporation_ticker,alliance_ticker,
+                 security_status, birthday, race_id, bloodline_id, created_at, updated_at)
+            VALUES
+                (:id, :name, :corp_id, :corp_name, :alliance_id, :alliance_name,
+                 :corpticker,:allianceticker,
+                 :sec, :birthday, :race_id, :bloodline_id, NOW(), NOW())
+            ON CONFLICT (id) DO NOTHING
+        SQL)->execute([
+            'id'           => $characterId,
+            'name'         => $char['name'],
+            'corp_id'      => $char['corporation_id'] ?? null,
+            'corp_name'    => $corpName,
+            'alliance_id'  => $char['alliance_id'] ?? null,
+            'alliance_name'=> $allianceName,
+            'corpticker'   => $corpTicker,
+            'allianceticker'   => $allianceTicker,
+            'sec'          => $char['security_status'] ?? 0,
+            'birthday'     => $char['birthday'] ?? null,
+            'race_id'      => $char['race_id'] ?? null,
+            'bloodline_id' => $char['bloodline_id'] ?? null,
+        ]);
+
+        return $this->findById($characterId);
+    }
     /**
      * Public pilot listing for the Browse page.
      */
@@ -63,16 +85,10 @@ final class PilotRepository
     {
         $offset = ($page - 1) * $perPage;
         $stmt   = $this->db->prepare(<<<SQL
-            SELECT p.*,
-                   COUNT(pt.trophy_id) AS trophy_count,
-                   SUM(CASE WHEN t.rarity = 'epic' THEN 1 ELSE 0 END) AS epic_count,
-                   (SELECT SUM(skillpoints_in_skill) FROM pilot_skills WHERE pilot_id = p.id) AS total_sp
+            SELECT *
             FROM pilots p
-            LEFT JOIN pilot_trophies pt ON pt.pilot_id = p.id
-            LEFT JOIN trophies t ON t.id = pt.trophy_id
             WHERE p.is_public = true
             GROUP BY p.id
-            ORDER BY trophy_count DESC, p.updated_at DESC
             LIMIT :limit OFFSET :offset
         SQL);
         $stmt->bindValue(':limit',  $perPage, PDO::PARAM_INT);
@@ -92,13 +108,7 @@ final class PilotRepository
     public function getStats(int $pilotId): array
     {
         $row = $this->db->prepare(<<<SQL
-            SELECT
-                (SELECT SUM(skillpoints_in_skill) FROM pilot_skills WHERE pilot_id = p.id) AS total_sp,
-                (SELECT COUNT(*) FROM pilot_skills WHERE pilot_id = p.id AND trained_level = 5) AS skills_at_v,
-                (SELECT COUNT(*) FROM killmails WHERE pilot_id = p.id AND is_victim = false) AS kills,
-                (SELECT COUNT(*) FROM killmails WHERE pilot_id = p.id AND is_victim = true)  AS losses,
-                (SELECT COUNT(DISTINCT corporation_id) FROM corp_history WHERE pilot_id = p.id) AS corps_count,
-                EXTRACT(YEAR FROM AGE(NOW(), p.birthday)) AS years_old
+            SELECT isk total_isk, sp total_sp, asset_value asset_value,birthday birthday
             FROM pilots p WHERE p.id = ?
         SQL);
         $row->execute([$pilotId]);
@@ -108,6 +118,6 @@ final class PilotRepository
     public function setPublic(int $pilotId, bool $isPublic): void
     {
         $this->db->prepare('UPDATE pilots SET is_public = ?, updated_at = NOW() WHERE id = ?')
-                 ->execute([$isPublic, $pilotId]);
+                 ->execute([$isPublic ? 'true' : 'false', $pilotId]);
     }
 }

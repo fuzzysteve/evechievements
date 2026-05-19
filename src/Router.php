@@ -49,7 +49,8 @@ final class Router
             $method === 'GET'  && str_starts_with($path, '/pilot/')
                 => (new ProfileController($this->twig, $this->pilots, $this->trophies))
                         ->show(urldecode(substr($path, 7))),
-
+            $method === 'POST' && $path === '/dashboard/visibility'
+                => (new ProfileController($this->twig, $this->pilots, $this->trophies, $this->logger))->updateVisibility(),
             default => $this->notFound($path),
         };
     }
@@ -72,10 +73,7 @@ final class Router
     private function authCtrl(): AuthController
     {
         return new AuthController(
-            new AuthService(),
-            new SyncService(new EsiService($this->logger), $this->pilots, $this->logger),
-            $this->trophies,
-            $this->pilots
+            new AuthService()
         );
     }
 }

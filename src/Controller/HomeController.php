@@ -19,14 +19,10 @@ final class HomeController
     {
         $db = Database::connect();
 
-        $recentTrophies = $this->trophyService->getRecentPublicTrophies(8);
         $totalPilots    = (int) $db->query('SELECT COUNT(*) FROM pilots')->fetchColumn();
-        $totalTrophies  = (int) $db->query('SELECT COUNT(*) FROM pilot_trophies')->fetchColumn();
 
         echo $this->twig->render('pages/home.twig', [
-            'recent_trophies' => $recentTrophies,
             'total_pilots'    => $totalPilots,
-            'total_trophies'  => $totalTrophies,
             'online_count'    => 0, // fetched from ESI server status (optional)
         ]);
     }

@@ -4,76 +4,24 @@
 <div class="profile">
     <header class="profile__header">
         <div class="profile__portrait">
-            {% if pilot.portrait_256 %}<img src="{{ pilot.portrait_256 }}" alt="{{ pilot.name }}">
-            {% else %}<div class="profile__portrait-placeholder"></div>{% endif %}
+            <div class="pilot-thumb__portrait">
+                <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=64" alt="{{ pilot.name }}">
+            </div>
         </div>
         <div class="profile__identity">
             <h1 class="profile__name">{{ pilot.name }}</h1>
             {% if pilot.corporation_name %}<p class="profile__corp">{{ pilot.corporation_name }}{% if pilot.alliance_name %} · {{ pilot.alliance_name }}{% endif %}</p>{% endif %}
-            <div class="profile__meta-row">
-                <span class="badge badge--trophies">{{ trophies|length }} TROPHIES</span>
-                {% set epic_count = trophies|filter(t => t.rarity == "epic")|length %}
-                {% if epic_count > 0 %}<span class="badge badge--epic">{{ epic_count }} EPIC</span>{% endif %}
-            </div>
         </div>
         <div class="profile__stats">
-            {% if stats.total_sp %}
+            {% if stats.total_sp != -1 %}
             <div class="stat"><span class="stat__value">{{ (stats.total_sp / 1000000)|number_format(1) }}M</span><span class="stat__label">SP</span></div>
             {% endif %}
-            {% if stats.kills is defined and stats.losses is defined %}
-            {% set eff = stats.kills + stats.losses > 0 ? (stats.kills / (stats.kills + stats.losses) * 100) : 0 %}
-            <div class="stat"><span class="stat__value">{{ eff|number_format(1) }}%</span><span class="stat__label">EFF</span></div>
+            {% if stats.total_isk != -1 %}
+            <div class="stat"><span class="stat__value">{{ (stats.total_isk / 1000000)|number_format(1) }}M</span><span class="stat__label">ISK</span></div>
             {% endif %}
-            {% if stats.years_old %}<div class="stat"><span class="stat__value">{{ stats.years_old }}y</span><span class="stat__label">IN AGE</span></div>{% endif %}
+            {% if stats.birthday %}<div class="stat"><span class="stat__value">{{ date().diff(date(stats.birthday)).y }}y</span><span class="stat__label">IN AGE</span></div>{% endif %}
         </div>
     </header>
 
-    <section class="profile__trophies">
-        <h2 class="section-title">◇ TROPHIES</h2>
-        <div class="trophy-grid">
-            {% for trophy in trophies %}
-            <div class="trophy-card trophy-card--{{ trophy.rarity }}">
-                <div class="trophy-card__icon-area"><div class="trophy-card__icon"></div></div>
-                <div class="trophy-card__body">
-                    <span class="trophy-card__rarity">{{ trophy.rarity|upper }}</span>
-                    <p class="trophy-card__name">{{ trophy.name }}</p>
-                    <p class="trophy-card__meta">{{ trophy.category|upper }} · YC {{ trophy.earned_at|date("Y.m.d") }}</p>
-                </div>
-                <span class="trophy-card__pct">{{ trophy.earned_pct|number_format(1) }}%</span>
-            </div>
-            {% else %}
-            <p class="empty-state">No trophies earned yet. Keep flying, capsuleer.</p>
-            {% endfor %}
-        </div>
-    </section>
-
-    {% if skill_queue|length > 0 %}
-    <section class="profile__queue">
-        <h2 class="section-title">◇ SKILL QUEUE</h2>
-        <ul class="skill-queue">
-            {% for item in skill_queue %}
-            <li class="skill-queue__item">
-                <span class="skill-queue__name">{{ item.skill_name ?? "Skill #" ~ item.skill_id }}</span>
-                <span class="skill-queue__level">→ {{ item.finished_level }}</span>
-                {% if item.finish_date %}<span class="skill-queue__finish">{{ item.finish_date|date("d M Y") }}</span>{% endif %}
-            </li>
-            {% endfor %}
-        </ul>
-    </section>
-    {% endif %}
-
-    {% if corp_history|length > 0 %}
-    <section class="profile__corps">
-        <h2 class="section-title">◇ CORP HISTORY</h2>
-        <ul class="corp-list">
-            {% for corp in corp_history %}
-            <li class="corp-list__item">
-                <span class="corp-list__id">#{{ corp.corporation_id }}</span>
-                <span class="corp-list__date">{{ corp.start_date|date("Y.m.d") }}</span>
-            </li>
-            {% endfor %}
-        </ul>
-    </section>
-    {% endif %}
 </div>
 {% endblock %}

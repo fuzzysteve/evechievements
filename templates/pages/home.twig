@@ -5,16 +5,15 @@
     <div class="hero__left">
         <p class="hero__eyebrow">◇ THIRD-PARTY CAPSULEER REGISTRY</p>
         <h1 class="hero__headline">
-            Every undock,<br>
-            <span class="hero__headline-accent">every trophy,</span><br>
+            <span class="hero__headline-accent">Every trophy</span><br>
             on the record.
         </h1>
-        <p class="hero__sub">Connect your pilot, opt-in to what's public, and let other capsuleers browse your career. Pulls live data via ESI — your wallet stays sealed.</p>
+        <p class="hero__sub">Connect your pilot, opt-in to what's public, and let other capsuleers browse your career.</p>
         <div class="hero__cta">
             <a href="/auth/login" class="btn btn--primary">→ AUTHENTICATE VIA ESI</a>
             <a href="/browse"     class="btn btn--outline">VIEW EXAMPLE PROFILE</a>
         </div>
-        <p class="hero__stats">· {{ total_pilots|number_format }} pilots indexed &nbsp;· {{ total_trophies|number_format }} achievements tracked &nbsp;· Sync &lt; 60s</p>
+        <p class="hero__stats">· {{ total_pilots|number_format }} pilots indexed &nbsp;· {{ total_trophies|number_format }} achievements tracked</p>
     </div>
     <div class="hero__right">
         <p class="hero__card-label">◇ EXAMPLE / Steve Ronuken</p>
@@ -24,8 +23,6 @@
                 <h2 class="pilot-card__name">Steve Ronuken</h2>
                 <p class="pilot-card__corp">[FZZW] · [VOTE]</p>
                 <div class="pilot-card__badges">
-                    <span class="badge badge--trophies">12 TROPHIES</span>
-                    <span class="badge badge--epic">2 EPIC</span>
                 </div>
             </div>
             <div class="pilot-card__stats">
@@ -62,8 +59,8 @@
 </section>
 
 <section class="features">
-    <div class="feature"><span class="feature__num">01 ——</span><h3>ESI does the work</h3><p>Authenticate once. We pull skills, killmails, corp history — exactly what you authorise, nothing more.</p></div>
+    <div class="feature"><span class="feature__num">01 ——</span><h3>ESI does the work</h3><p>Authenticate when you want to update your card, we don't retain your credentials.</p></div>
     <div class="feature"><span class="feature__num">02 ——</span><h3>You curate the showcase</h3><p>Toggle any section private. Pin your proudest achievements. Reorder. Hide losses.</p></div>
-    <div class="feature"><span class="feature__num">03 ——</span><h3>Trophies, when CCP ships them</h3><p>EVEchievements is ready for the EVE achievement system. The moment a milestone unlocks in-game, it lands here.</p></div>
+    <div class="feature"><span class="feature__num">03 ——</span><h3>Trophies, when CCP ships them</h3><p>Once they add them, I'll make them available here.. The moment a milestone unlocks in-game, it lands here.</p></div>
 </section>
 {% endblock %}

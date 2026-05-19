@@ -17,10 +17,8 @@ final class AuthService
             'clientSecret'            => $_ENV['EVE_CLIENT_SECRET'],
             'redirectUri'             => $_ENV['EVE_CALLBACK_URL'],
             'urlAuthorize'            => 'https://login.eveonline.com/v2/oauth/authorize',
-            'urlAccessToken'          => 'https://login.eveonline.com/v2/oauth/token',
-            'urlResourceOwnerDetails' => 'https://esi.evetech.net/verify',
-            'scopes'                  => implode(' ', EsiService::SCOPES),
-            'scopeSeparator'          => ' ',
+	    'urlAccessToken'          => 'https://login.eveonline.com/v2/oauth/token',
+	    'urlResourceOwnerDetails' => 'https://login.eveonline.com/oauth/verify'
         ]);
     }
 
@@ -31,14 +29,34 @@ final class AuthService
         return $url;
     }
 
-    public function handleCallback(string $code, string $returnedState): AccessToken
+    public function handleCallback(string $code, string $returnedState): array
     {
         if (empty($_SESSION['oauth2_state']) || $returnedState !== $_SESSION['oauth2_state']) {
-            throw new RuntimeException('OAuth2 state mismatch — possible CSRF attempt.');
+            throw new RuntimeException('OAuth2 state mismatch.');
         }
         unset($_SESSION['oauth2_state']);
-        return $this->provider->getAccessToken('authorization_code', ['code' => $code]);
+
+        $token = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
+
+        // EVE SSO v2 — decode the JWT payload directly, no verify endpoint needed
+        $parts   = explode('.', $token->getToken());
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+        // sub is "CHARACTER:EVE:12345678"
+        $characterId = (int) explode(':', $payload['sub'])[2];
+        $name        = $payload['name'];
+
+        return [
+            'id'            => $characterId,
+            'name'          => $name,
+            'access_token'  => $token->getToken(),
+            'refresh_token' => $token->getRefreshToken(),
+            'token_expires' => date('Y-m-d H:i:s', $token->getExpires()),
+            'scopes'        => explode(' ', $payload['scp'] ?? ''),
+        ];
     }
+
+
 
     public function refreshToken(string $refreshToken): AccessToken
     {

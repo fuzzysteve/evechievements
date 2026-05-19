@@ -29,7 +29,7 @@
             </form>
             {% if pilot.is_public %}
             <p class="dashboard__profile-link">
-                Your profile: <a href="/pilot/{{ pilot.name|url_encode }}">/pilot/{{ pilot.name }}</a>
+                Your profile: <a href="/pilot/{{ pilot.id|url_encode }}">/pilot/{{ pilot.id }}</a>
             </p>
             {% endif %}
         </section>
