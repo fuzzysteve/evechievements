@@ -13,7 +13,7 @@ final class TwigFactory
         $loader = new FilesystemLoader(ROOT . '/templates');
         $twig   = new Environment($loader, [
             'cache'       => $_ENV['APP_ENV'] === 'production'
-                                ? ROOT . '/var/cache/twig' : false,
+                                ? ROOT . '/cache/twig' : false,
             'debug'       => ($_ENV['APP_DEBUG'] ?? 'false') === 'true',
             'auto_reload' => true,
         ]);
@@ -36,6 +36,20 @@ final class TwigFactory
         }));
 
         $twig->addFilter(new TwigFilter('rarity_class', fn(string $r): string => "trophy--{$r}"));
+
+        // Round to 3 significant figures and format EVE-style
+        $twig->addFilter(new TwigFilter('sig_figs', function (float $value, int $figs = 3): string {
+            if ($value == 0) return '0';
+            $magnitude = floor(log10(abs($value)));
+            $factor    = pow(10, $figs - 1 - $magnitude);
+            $rounded   = round($value * $factor) / $factor;
+            return match(true) {
+                $rounded >= 1_000_000_000 => number_format($rounded / 1_000_000_000, max(0, $figs - 1 - (int) floor(log10($rounded / 1_000_000_000)))) . 'B',
+                $rounded >= 1_000_000     => number_format($rounded / 1_000_000,     max(0, $figs - 1 - (int) floor(log10($rounded / 1_000_000))))     . 'M',
+                $rounded >= 1_000         => number_format($rounded / 1_000,         max(0, $figs - 1 - (int) floor(log10($rounded / 1_000))))         . 'K',
+                default                   => number_format($rounded),
+            };
+        }));
 
         return $twig;
     }

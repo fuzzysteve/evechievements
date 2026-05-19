@@ -52,7 +52,10 @@ final class Router
 
             $method === 'GET'  && str_starts_with($path, '/pilot/')
                 => (new ProfileController($this->twig, $this->pilots, $this->trophies))
-                        ->show(urldecode(substr($path, 7))),
+			->show(urldecode(substr($path, 7))),
+            $method === 'POST' && $path === '/dashboard/display'
+                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->saveDisplaySelections(),
+
             $method === 'POST' && $path === '/dashboard/visibility'
                 => (new ProfileController($this->twig, $this->pilots, $this->trophies, $this->logger))->updateVisibility(),
             default => $this->notFound($path),

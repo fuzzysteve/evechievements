@@ -2,6 +2,7 @@
 {% block title %}Dashboard — {{ pilot.name }}{% endblock %}
 {% block content %}
 <div class="dashboard">
+
     <header class="dashboard__header">
         <div class="dashboard__portrait">
             <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=128" alt="{{ pilot.name }}">
@@ -13,10 +14,7 @@
             <p class="dashboard__corp">
                 {{ pilot.corporation_name }}
                 {% if pilot.corporation_ticker %}[{{ pilot.corporation_ticker }}]{% endif %}
-                {% if pilot.alliance_name %}
-                 · {{ pilot.alliance_name }}
-                {% if pilot.alliance_ticker %}[{{ pilot.alliance_ticker }}]{% endif %}
-                {% endif %}
+                {% if pilot.alliance_name %} · {{ pilot.alliance_name }}{% if pilot.alliance_ticker %} [{{ pilot.alliance_ticker }}]{% endif %}{% endif %}
             </p>
             {% endif %}
         </div>
@@ -32,63 +30,11 @@
         </div>
     </header>
 
+    {% if app.session.saved is defined %}
+    <div class="alert alert--success">Display selections saved.</div>
+    {% endif %}
+
     <div class="dashboard__sections">
-
-        {# ── Skills ───────────────────────────────────────────────────────── #}
-        <section class="data-section">
-            <div class="data-section__header">
-                <h2 class="section-title">◇ SKILLS</h2>
-                <a href="/auth/fetch/skills" class="btn btn--outline btn--sm">
-                    {{ session.fetched.skills is defined ? '↻ REFRESH' : '→ LOAD' }}
-                </a>
-            </div>
-
-            {% if session.fetched.skills is defined %}
-            <div class="data-section__body">
-                <div class="stat-row">
-                    <div class="stat">
-                        <span class="stat__value">{{ (session.fetched.skills.total_sp / 1000000)|number_format(1) }}M</span>
-                        <span class="stat__label">TOTAL SP</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat__value">{{ session.fetched.skills.skills|length }}</span>
-                        <span class="stat__label">SKILLS TRAINED</span>
-                    </div>
-                </div>
-
-                <table class="skill-table">
-                <thead>
-                    <tr>
-                        <th>Skill</th>
-                        <th>Active</th>
-                        <th>Trained</th>
-                        <th>SP</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for skill in session.fetched.skills.skills %}
-                    <tr>
-                        <td>{{ skill.skill_name }}</td>
-                        <td>
-                            {% for i in 1..5 %}
-                            <span class="skill-pip skill-pip--{{ i <= skill.active_skill_level ? 'active' : (i <= skill.trained_skill_level ? 'trained' : 'empty') }}"></span>
-                            {% endfor %}
-                        </td>
-                        <td>
-                            {% for i in 1..5 %}
-                            <span class="skill-pip skill-pip--{{ i <= skill.trained_skill_level ? 'filled' : 'empty' }}"></span>
-                            {% endfor %}
-                        </td>
-                        <td>{{ (skill.skillpoints_in_skill / 1000)|number_format(0) }}K</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                </table>
-            </div>
-            {% else %}
-            <p class="data-section__empty">Authorise ESI to load your skill data.</p>
-            {% endif %}
-        </section>
 
         {# ── Wallet ───────────────────────────────────────────────────────── #}
         <section class="data-section">
@@ -98,7 +44,6 @@
                     {{ session.fetched.wallet is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
             </div>
-
             {% if session.fetched.wallet is defined %}
             <div class="data-section__body">
                 <div class="stat">
@@ -119,7 +64,6 @@
                     {{ session.fetched.assets is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
             </div>
-
             {% if session.fetched.assets is defined %}
             <div class="data-section__body">
                 <div class="stat">
@@ -129,6 +73,183 @@
             </div>
             {% else %}
             <p class="data-section__empty">Authorise ESI to load your assets.</p>
+            {% endif %}
+        </section>
+
+        {# ── Skills / Certs / Masteries ───────────────────────────────────── #}
+        <section class="data-section">
+            <div class="data-section__header">
+                <h2 class="section-title">◇ SKILLS · CERTIFICATES · MASTERIES</h2>
+                <a href="/auth/fetch/skills" class="btn btn--outline btn--sm">
+                    {{ session.fetched.skills is defined ? '↻ REFRESH' : '→ LOAD' }}
+                </a>
+            </div>
+
+            {% if session.fetched.skills is defined %}
+            <div class="data-section__body">
+
+                <div class="stat-row" style="margin-bottom:1.5rem">
+                    <div class="stat">
+                        <span class="stat__value">{{ (session.fetched.skills.total_sp / 1000000)|number_format(1) }}M</span>
+                        <span class="stat__label">TOTAL SP</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__value">{{ session.fetched.skills.skills|length }}</span>
+                        <span class="stat__label">SKILLS</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__value">{{ session.fetched.skills.certs|length }}</span>
+                        <span class="stat__label">CERTS COMPLETED</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__value">{{ session.fetched.skills.masteries|length }}</span>
+                        <span class="stat__label">SHIP MASTERIES</span>
+                    </div>
+                </div>
+
+                <form method="POST" action="/dashboard/display">
+
+                    {# Skills #}
+                    <div class="selection-group">
+                        <h3 class="selection-group__title">SKILLS
+                            <span class="selection-group__hint">— tick to show on your public profile</span>
+                        </h3>
+                        <table class="skill-table">
+                            <thead>
+                                <tr>
+                                    <th>Show</th>
+                                    <th>Skill</th>
+                                    <th>Active</th>
+                                    <th>Trained</th>
+                                    <th>SP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for skill in session.fetched.skills.skills %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox"
+                                               name="skill_{{ skill.skill_id }}"
+                                               value="1"
+                                    {% if selections.skill_ids[skill.skill_id] is defined %}checked{% endif %}>
+                                    </td>
+                                    <td>{{ skill.skill_name }}</td>
+                                    <td>
+                                        {% for i in 1..5 %}
+                                        <span class="skill-pip skill-pip--{{ i <= skill.active_skill_level ? 'active' : (i <= skill.trained_skill_level ? 'trained' : 'empty') }}"></span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% for i in 1..5 %}
+                                        <span class="skill-pip skill-pip--{{ i <= skill.trained_skill_level ? 'filled' : 'empty' }}"></span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ (skill.skillpoints_in_skill / 1000)|number_format(0) }}K</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {# Certificates #}
+                    {% if session.fetched.skills.certs|length > 0 %}
+                    <div class="selection-group">
+                        <h3 class="selection-group__title">CERTIFICATES
+                            <span class="selection-group__hint">— highest completed level shown</span>
+                        </h3>
+                        <table class="skill-table">
+                            <thead>
+                                <tr>
+                                    <th>Show</th>
+                                    <th>Certificate</th>
+                                    <th>Level</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cert_id, cert in session.fetched.skills.certs %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox"
+                                               name="cert_{{ cert_id }}"
+                                               value="1"
+                                               {% if selections.cert_ids[cert_id] is defined %}checked{% endif %}>
+                                    </td>
+                                    <td>{{ cert.name }}</td>
+                                    <td>
+                                        {% for i in 1..5 %}
+                                        <span class="skill-pip skill-pip--{{ i <= cert.level ? 'filled' : 'empty' }}"></span>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {# Masteries #}
+                    {% if session.fetched.skills.masteries|length > 0 %}
+                    <div class="selection-group">
+                        <h3 class="selection-group__title">SHIP MASTERIES
+                            <span class="selection-group__hint">— highest completed level shown</span>
+                        </h3>
+                        <table class="skill-table">
+                            <thead>
+                                <tr>
+                                    <th>Show</th>
+                                    <th>Ship</th>
+                                    <th>Mastery</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for type_id, mastery in session.fetched.skills.masteries %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox"
+                                               name="mastery_{{ type_id }}"
+                                               value="1"
+                                               {% if selections.mastery_ids[type_id] is defined %}checked{% endif %}>
+                                    </td>
+                                    <td>
+                                        <img src="https://images.evetech.net/types/{{ type_id }}/icon?size=32"
+                                             alt="{{ mastery.name }}"
+                                             style="width:32px;height:32px;vertical-align:middle;margin-right:0.4rem;">
+                                        {{ mastery.name }}
+                                    </td>
+                                    <td>
+                                        {% for i in 1..5 %}
+                                        <span class="skill-pip skill-pip--{{ i <= mastery.level ? 'filled' : 'empty' }}"></span>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <div class="form-actions">
+                        <div class="display-toggles">
+                            <label class="display-toggle">
+                                <input type="checkbox" name="show_sp" value="1"
+                                    {% if selections.show_sp %}checked{% endif %}
+                                    {% if session.fetched.skills is not defined %}disabled title="Load skills first"{% endif %}>
+                                <span>Show SP ({{ session.fetched.skills is defined ? (session.fetched.skills.total_sp|sig_figs ~ ' SP') : 'load skills first' }})</span>
+                            </label>
+                            <label class="display-toggle">
+                                <input type="checkbox" name="show_isk" value="1"
+                                    {% if selections.show_isk %}checked{% endif %}
+                                    {% if session.fetched.wallet is not defined %}disabled title="Load wallet first"{% endif %}>
+                                <span>Show ISK ({{ session.fetched.wallet is defined ? (session.fetched.wallet.balance|sig_figs ~ ' ISK') : 'load wallet first' }})</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn--primary">SAVE DISPLAY SELECTIONS</button>
+                    </div>
+
+                </form>
+            </div>
+            {% else %}
+            <p class="data-section__empty">Authorise ESI to load skills, certificates and masteries.</p>
             {% endif %}
         </section>
 

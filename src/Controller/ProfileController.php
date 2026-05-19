@@ -3,7 +3,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\PilotRepository;
-use App\Service\EsiService;
 use App\Service\TrophyService;
 use App\Config\Database;
 use Twig\Environment;
@@ -13,13 +12,13 @@ final class ProfileController
     public function __construct(
         private readonly Environment     $twig,
         private readonly PilotRepository $pilots,
-	private readonly TrophyService   $trophies,
+        private readonly TrophyService   $trophies
     ) {}
 
     /** Public profile: /pilot/{name} */
-    public function show(string $id): void
+    public function show(string $name): void
     {
-        $pilot = $this->pilots->findById(intval($id));
+        $pilot = $this->pilots->findByName($name);
         if ($pilot === null) {
             http_response_code(404);
             echo $this->twig->render('pages/404.twig', ['search' => $name]);
@@ -32,59 +31,116 @@ final class ProfileController
             return;
         }
 
-        $db      = Database::connect();
-	$stats   = $this->pilots->getStats($pilot['id']);
-
-
-        // Skill queue (top 5)
-
-        // Corp history
-
         echo $this->twig->render('pages/profile.twig', [
-            'pilot'        => $pilot,
-            'stats'        => $stats,
-            'is_own'       => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
+            'pilot'      => $pilot,
+            'selections' => $this->pilots->getDisplaySelections($pilot['id']),
+            'is_own'     => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
         ]);
     }
 
     /** Dashboard: /dashboard (requires auth) */
     public function dashboard(): void
-    {   
-	$esi = new EsiService(new \Monolog\Logger('esi'));    
-	$pilotId = $_SESSION['pilot_id'] ?? null;
+    {
+        $pilotId = $_SESSION['pilot_id'] ?? null;
         if ($pilotId === null) {
             header('Location: /');
             exit;
         }
 
-	$pilot = $this->pilots->findById($pilotId);
-
-        if ($pilot === null) {
-	    $pilot = $this->pilots->createById($pilotId,$esi);
-        }
-
-
-
-        $stats   = $this->pilots->getStats($pilotId);
+        $pilot      = $this->pilots->findById($pilotId);
+        $selections = $this->pilots->getDisplaySelections($pilotId);
 
         echo $this->twig->render('pages/dashboard.twig', [
-            'pilot'    => $pilot,
-            'stats'    => $stats,
+            'pilot'      => $pilot,
+            'selections' => $selections,
         ]);
     }
+
+    /** POST /dashboard/visibility — toggle public/private */
     public function updateVisibility(): void
     {
         $pilotId = $_SESSION['pilot_id'] ?? null;
         if ($pilotId === null) {
             header('Location: /');
             exit;
-	}
+        }
 
         $pilot = $this->pilots->findById($pilotId);
         $this->pilots->setPublic($pilotId, !$pilot['is_public']);
- 
-    
+
         header('Location: /dashboard');
+        exit;
+    }
+
+    /** POST /dashboard/display — save skill/cert/mastery display selections */
+    public function saveDisplaySelections(): void
+    {
+        $pilotId = $_SESSION['pilot_id'] ?? null;
+        if ($pilotId === null) {
+            header('Location: /');
+            exit;
+        }
+
+        $fetched = $_SESSION['fetched']['skills'] ?? null;
+        if ($fetched === null) {
+            header('Location: /dashboard?error=no_skill_data');
+            exit;
+        }
+
+        // Build indexed lookups from session for validation
+        $sessionSkills    = array_column($fetched['skills'], null, 'skill_id');
+        $sessionCerts     = $fetched['certs'];      // [certID => {level, name}]
+        $sessionMasteries = $fetched['masteries'];  // [typeID => {level, name}]
+
+        // Skills — validate each submitted ID exists in session
+        $skills = [];
+        foreach ($_POST as $key => $value) {
+            if (!str_starts_with($key, 'skill_') || $value !== '1') continue;
+            $skillId = (int) substr($key, 6);
+            if (!isset($sessionSkills[$skillId])) continue; // not in their session — reject
+            $skills[] = [$skillId, $sessionSkills[$skillId]['active_skill_level']];
+        }
+
+        // Certs — validate against session
+        $certs = [];
+        foreach ($_POST as $key => $value) {
+            if (!str_starts_with($key, 'cert_') || $value !== '1') continue;
+            $certId = (int) substr($key, 5);
+            if (!isset($sessionCerts[$certId])) continue; // not completed — reject
+            $certs[] = [$certId, $sessionCerts[$certId]['level']];
+        }
+
+        // Masteries — validate against session
+        $masteries = [];
+        foreach ($_POST as $key => $value) {
+            if (!str_starts_with($key, 'mastery_') || $value !== '1') continue;
+            $typeId = (int) substr($key, 8);
+            if (!isset($sessionMasteries[$typeId])) continue; // not completed — reject
+            $masteries[] = [$typeId, $sessionMasteries[$typeId]['level']];
+        }
+
+        $this->pilots->saveDisplaySkills($pilotId, $skills);
+        $this->pilots->saveDisplayCerts($pilotId, $certs);
+        $this->pilots->saveDisplayMasteries($pilotId, $masteries);
+
+        // SP — only saveable if skills were fetched
+        $sp = null;
+        if (($_POST['show_sp'] ?? '') === '1' && isset($fetched['total_sp'])) {
+            $sp = (float) $fetched['total_sp'];
+        }
+
+        // ISK — only saveable if wallet was fetched
+        $isk = null;
+        if (($_POST['show_isk'] ?? '') === '1') {
+            $walletFetched = $_SESSION['fetched']['wallet'] ?? null;
+            if ($walletFetched !== null) {
+                $isk = (float) $walletFetched['balance'];
+            }
+        }
+
+        $this->pilots->saveDisplaySpIsk($pilotId, $sp, $isk);
+
+        header('Location: /dashboard?saved=1');
         exit;
     }
 }

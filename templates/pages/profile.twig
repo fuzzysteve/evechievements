@@ -2,26 +2,134 @@
 {% block title %}{{ pilot.name }}{% endblock %}
 {% block content %}
 <div class="profile">
+
     <header class="profile__header">
         <div class="profile__portrait">
-            <div class="pilot-thumb__portrait">
-                <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=64" alt="{{ pilot.name }}">
-            </div>
+            <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=256" alt="{{ pilot.name }}">
         </div>
         <div class="profile__identity">
             <h1 class="profile__name">{{ pilot.name }}</h1>
-            {% if pilot.corporation_name %}<p class="profile__corp">{{ pilot.corporation_name }}{% if pilot.alliance_name %} · {{ pilot.alliance_name }}{% endif %}</p>{% endif %}
-        </div>
-        <div class="profile__stats">
-            {% if stats.total_sp != -1 %}
-            <div class="stat"><span class="stat__value">{{ (stats.total_sp / 1000000)|number_format(1) }}M</span><span class="stat__label">SP</span></div>
+            {% if pilot.corporation_name %}
+            <p class="profile__corp">
+                {{ pilot.corporation_name }}
+                {% if pilot.corporation_ticker %}[{{ pilot.corporation_ticker }}]{% endif %}
+                {% if pilot.alliance_name %} · {{ pilot.alliance_name }}{% if pilot.alliance_ticker %} [{{ pilot.alliance_ticker }}]{% endif %}{% endif %}
+            </p>
             {% endif %}
-            {% if stats.total_isk != -1 %}
-            <div class="stat"><span class="stat__value">{{ (stats.total_isk / 1000000)|number_format(1) }}M</span><span class="stat__label">ISK</span></div>
-            {% endif %}
-            {% if stats.birthday %}<div class="stat"><span class="stat__value">{{ date().diff(date(stats.birthday)).y }}y</span><span class="stat__label">IN AGE</span></div>{% endif %}
+
+            <div class="profile__stats">
+                {% if pilot.sp != -1 %}
+                <div class="stat">
+                    <span class="stat__value">{{ pilot.sp|sig_figs }}</span>
+                    <span class="stat__label">SP</span>
+                </div>
+                {% endif %}
+                {% if pilot.isk != -1 %}
+                <div class="stat">
+                    <span class="stat__value">{{ pilot.isk|sig_figs }} ISK</span>
+                    <span class="stat__label">WALLET</span>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </header>
 
+    {# ── Skills ───────────────────────────────────────────────────────────── #}
+    {% if selections.skills|length > 0 %}
+    <section class="profile__section">
+        <h2 class="section-title">◇ SKILLS</h2>
+        <table class="skill-table">
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    <th>Active</th>
+                    <th>Trained</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for skill in selections.skills %}
+                <tr>
+                    <td>{{ skill.skill_name }}</td>
+                    <td>
+                        {% for i in 1..5 %}
+                        <span class="skill-pip skill-pip--{{ i <= skill.active_level ? 'active' : (i <= skill.trained_level ? 'trained' : 'empty') }}"></span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for i in 1..5 %}
+                        <span class="skill-pip skill-pip--{{ i <= skill.trained_level ? 'filled' : 'empty' }}"></span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    {# ── Certificates ─────────────────────────────────────────────────────── #}
+    {% if selections.certs|length > 0 %}
+    <section class="profile__section">
+        <h2 class="section-title">◇ CERTIFICATES</h2>
+        <table class="skill-table">
+            <thead>
+                <tr>
+                    <th>Certificate</th>
+                    <th>Level</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cert in selections.certs %}
+                <tr>
+                    <td>{{ cert.cert_name }}</td>
+                    <td>
+                        {% for i in 1..5 %}
+                        <span class="skill-pip skill-pip--{{ i <= cert.level ? 'filled' : 'empty' }}"></span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    {# ── Masteries ────────────────────────────────────────────────────────── #}
+    {% if selections.masteries|length > 0 %}
+    <section class="profile__section">
+        <h2 class="section-title">◇ SHIP MASTERIES</h2>
+        <table class="skill-table">
+            <thead>
+                <tr>
+                    <th>Ship</th>
+                    <th>Mastery</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mastery in selections.masteries %}
+                <tr>
+                    <td>
+                        <img src="https://images.evetech.net/types/{{ mastery.type_id }}/icon?size=32"
+                             alt="{{ mastery.type_name }}"
+                             style="width:32px;height:32px;vertical-align:middle;margin-right:0.4rem;">
+                        {{ mastery.type_name }}
+                    </td>
+                    <td>
+                        {% for i in 1..5 %}
+                        <span class="skill-pip skill-pip--{{ i <= mastery.mastery_level ? 'filled' : 'empty' }}"></span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    {% if selections.skills|length == 0 and selections.certs|length == 0 and selections.masteries|length == 0 and pilot.sp == -1 and pilot.isk == -1 %}
+    <p class="empty-state">This capsuleer hasn't chosen to display anything yet.</p>
+    {% endif %}
+
 </div>
 {% endblock %}
+
