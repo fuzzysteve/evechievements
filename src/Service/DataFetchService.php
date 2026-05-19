@@ -160,7 +160,7 @@ final class DataFetchService
                     }
                 }
                 if ($complete) {
-                    $highest = max($highest, $masteryLevel);
+                    $highest = max($highest, $masteryLevel + 1);
                 }
             }
             if ($highest > 0) {
