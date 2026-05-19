@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EVEchievements{% endblock %} · Capsuleer Registry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/app.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+<nav class="topnav">
+    <div class="topnav__brand">
+        <span class="topnav__logo-icon">◇</span>
+        <span class="topnav__logo-main">EVE<span class="topnav__logo-accent">CHIEVEMENTS</span></span>
+        <span class="topnav__logo-sub">.ONLINE · CAPSULEER REGISTRY</span>
+    </div>
+    <ul class="topnav__links">
+        <li><a href="/"       class="topnav__link">HOME</a></li>
+        <li><a href="/browse" class="topnav__link">BROWSE</a></li>
+        {% if app.session.pilot_id is defined %}<li><a href="/dashboard" class="topnav__link">DASHBOARD</a></li>{% endif %}
+    </ul>
+    <div class="topnav__status">
+        {% if session.pilot_id is defined and session.pilot_id %}
+            <a href="/auth/logout" class="btn btn--outline btn--sm">LOGOUT</a>
+        {% else %}
+            <a href="/auth/login" class="btn btn--primary btn--sm">AUTHENTICATE</a>
+        {% endif %}
+    </div>
+</nav>
+<main>{% block content %}{% endblock %}</main>
+<footer class="footer">
+    <div class="footer__inner">
+        <p>EVEchievements is not affiliated with CCP Games. EVE Online is property of CCP hf.</p>
+    </div>
+</footer>
+<script src="/assets/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

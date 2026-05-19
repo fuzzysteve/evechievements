@@ -1,0 +1,27 @@
+{
+    "name": "evechievements/app",
+    "description": "EVE Online capsuleer achievement registry",
+    "type": "project",
+    "require": {
+        "php": "^8.4",
+        "twig/twig": "^3.0",
+        "twig/extra-bundle": "^3.0",
+        "twig/intl-extra": "^3.0",
+        "league/oauth2-client": "^2.7",
+        "guzzlehttp/guzzle": "^7.9",
+        "vlucas/phpdotenv": "^5.6",
+        "ramsey/uuid": "^4.7",
+        "monolog/monolog": "^3.8"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.12"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "scripts": {
+        "migrate": "php bin/migrate.php"
+    }
+}

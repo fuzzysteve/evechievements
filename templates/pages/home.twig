@@ -1,0 +1,69 @@
+{% extends "layout/base.twig" %}
+{% block title %}EVEchievements{% endblock %}
+{% block content %}
+<section class="hero">
+    <div class="hero__left">
+        <p class="hero__eyebrow">◇ THIRD-PARTY CAPSULEER REGISTRY</p>
+        <h1 class="hero__headline">
+            Every undock,<br>
+            <span class="hero__headline-accent">every trophy,</span><br>
+            on the record.
+        </h1>
+        <p class="hero__sub">Connect your pilot, opt-in to what's public, and let other capsuleers browse your career. Pulls live data via ESI — your wallet stays sealed.</p>
+        <div class="hero__cta">
+            <a href="/auth/login" class="btn btn--primary">→ AUTHENTICATE VIA ESI</a>
+            <a href="/browse"     class="btn btn--outline">VIEW EXAMPLE PROFILE</a>
+        </div>
+        <p class="hero__stats">· {{ total_pilots|number_format }} pilots indexed &nbsp;· {{ total_trophies|number_format }} achievements tracked &nbsp;· Sync &lt; 60s</p>
+    </div>
+    <div class="hero__right">
+        <p class="hero__card-label">◇ EXAMPLE / Steve Ronuken</p>
+        <div class="pilot-card pilot-card--hero">
+            <div class="pilot-card__portrait">i<img src="https://sea1.discourse-cdn.com/eveonline/user_avatar/forums.eveonline.com/steve_ronuken/72/373894_2.png"></div>
+            <div class="pilot-card__info">
+                <h2 class="pilot-card__name">Steve Ronuken</h2>
+                <p class="pilot-card__corp">[FZZW] · [VOTE]</p>
+                <div class="pilot-card__badges">
+                    <span class="badge badge--trophies">12 TROPHIES</span>
+                    <span class="badge badge--epic">2 EPIC</span>
+                </div>
+            </div>
+            <div class="pilot-card__stats">
+                <div class="stat"><span class="stat__value">279.6M</span><span class="stat__label">SP</span></div>
+                <div class="stat"><span class="stat__value">200+B</span><span class="stat__label">ISK</span></div>
+                <div class="stat"><span class="stat__value">2011</span><span class="stat__label">YEAR BORN</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="feed">
+    <div class="feed__header">
+        <p class="feed__eyebrow">◇ TROPHIES – LIVE FROM THE REGISTRY</p>
+        <h2 class="feed__title">What pilots are showing off this week</h2>
+        <a href="/browse" class="btn btn--outline btn--sm">BROWSE ALL →</a>
+    </div>
+    <div class="trophy-grid">
+        {% for trophy in recent_trophies %}
+        <a href="/pilot/{{ trophy.pilot_name|url_encode }}" class="trophy-card trophy-card--{{ trophy.rarity }}">
+            <div class="trophy-card__icon-area">
+                <div class="trophy-card__icon"></div>
+            </div>
+            <div class="trophy-card__body">
+                <span class="trophy-card__rarity">{{ trophy.rarity|upper }}</span>
+                <p class="trophy-card__name">{{ trophy.name }}</p>
+                <p class="trophy-card__meta">{{ trophy.category|upper }} · {{ trophy.earned_at|date("Y.m.d") }}</p>
+                <p class="trophy-card__pilot">{{ trophy.pilot_name }}</p>
+            </div>
+            <span class="trophy-card__pct">{{ trophy.earned_pct|number_format(1) }}%</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="features">
+    <div class="feature"><span class="feature__num">01 ——</span><h3>ESI does the work</h3><p>Authenticate once. We pull skills, killmails, corp history — exactly what you authorise, nothing more.</p></div>
+    <div class="feature"><span class="feature__num">02 ——</span><h3>You curate the showcase</h3><p>Toggle any section private. Pin your proudest achievements. Reorder. Hide losses.</p></div>
+    <div class="feature"><span class="feature__num">03 ——</span><h3>Trophies, when CCP ships them</h3><p>EVEchievements is ready for the EVE achievement system. The moment a milestone unlocks in-game, it lands here.</p></div>
+</section>
+{% endblock %}

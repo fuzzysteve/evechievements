@@ -1,0 +1,61 @@
+{% extends "layout/base.twig" %}
+{% block title %}Dashboard — {{ pilot.name }}{% endblock %}
+{% block content %}
+<div class="dashboard">
+    <header class="dashboard__header">
+        <p class="dashboard__eyebrow">◇ YOUR REGISTRY</p>
+        <h1 class="dashboard__title">{{ pilot.name }}</h1>
+        {% if pilot.corporation_name %}<p class="dashboard__corp">{{ pilot.corporation_name }}</p>{% endif %}
+    </header>
+
+    <div class="dashboard__grid">
+        <section class="dashboard__card">
+            <h2 class="section-title">OVERVIEW</h2>
+            <div class="stat-row">
+                {% if stats.total_sp %}<div class="stat"><span class="stat__value">{{ (stats.total_sp / 1000000)|number_format(1) }}M</span><span class="stat__label">SKILL POINTS</span></div>{% endif %}
+                <div class="stat"><span class="stat__value">{{ stats.kills ?? 0 }}</span><span class="stat__label">KILLS</span></div>
+                <div class="stat"><span class="stat__value">{{ stats.losses ?? 0 }}</span><span class="stat__label">LOSSES</span></div>
+                <div class="stat"><span class="stat__value">{{ stats.corps_count ?? 0 }}</span><span class="stat__label">CORPS</span></div>
+            </div>
+        </section>
+
+        <section class="dashboard__card">
+            <h2 class="section-title">VISIBILITY</h2>
+            <form method="POST" action="/dashboard/visibility">
+                <label class="toggle">
+                    <input type="checkbox" name="is_public" value="1" {% if pilot.is_public %}checked{% endif %} onchange="this.form.submit()">
+                    <span class="toggle__label">Public profile</span>
+                </label>
+            </form>
+            {% if pilot.is_public %}
+            <p class="dashboard__profile-link">
+                Your profile: <a href="/pilot/{{ pilot.name|url_encode }}">/pilot/{{ pilot.name }}</a>
+            </p>
+            {% endif %}
+        </section>
+
+        <section class="dashboard__card dashboard__card--full">
+            <h2 class="section-title">YOUR TROPHIES ({{ trophies|length }})</h2>
+            <div class="trophy-grid">
+                {% for trophy in trophies %}
+                <div class="trophy-card trophy-card--{{ trophy.rarity }}">
+                    <div class="trophy-card__icon-area"><div class="trophy-card__icon"></div></div>
+                    <div class="trophy-card__body">
+                        <span class="trophy-card__rarity">{{ trophy.rarity|upper }}</span>
+                        <p class="trophy-card__name">{{ trophy.name }}</p>
+                        <p class="trophy-card__meta">{{ trophy.category|upper }} · YC {{ trophy.earned_at|date("Y.m.d") }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <p class="empty-state">No trophies yet. Your data is being processed.</p>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <div class="dashboard__actions">
+        <a href="/dashboard/sync" class="btn btn--outline">↻ FORCE SYNC</a>
+        <a href="/auth/logout"    class="btn btn--ghost">LOGOUT</a>
+    </div>
+</div>
+{% endblock %}

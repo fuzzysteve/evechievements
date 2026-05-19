@@ -1,0 +1,34 @@
+{% extends "layout/base.twig" %}
+{% block title %}Browse Pilots{% endblock %}
+{% block content %}
+<div class="browse">
+    <header class="browse__header">
+        <p class="browse__eyebrow">◇ PUBLIC REGISTRY</p>
+        <h1 class="browse__title">{{ total_pilots|number_format }} capsuleers on record</h1>
+    </header>
+    <div class="pilot-grid">
+        {% for pilot in pilots %}
+        <a href="/pilot/{{ pilot.name|url_encode }}" class="pilot-thumb">
+            <div class="pilot-thumb__portrait">
+                {% if pilot.portrait_64 %}<img src="{{ pilot.portrait_64 }}" alt="{{ pilot.name }}">
+                {% else %}<div class="pilot-thumb__portrait-placeholder"></div>{% endif %}
+            </div>
+            <div class="pilot-thumb__info">
+                <p class="pilot-thumb__name">{{ pilot.name }}</p>
+                {% if pilot.corporation_name %}<p class="pilot-thumb__corp">{{ pilot.corporation_name }}</p>{% endif %}
+                <p class="pilot-thumb__trophies">{{ pilot.trophy_count ?? 0 }} trophies</p>
+            </div>
+        </a>
+        {% else %}
+        <p class="empty-state">No public pilots yet. Be the first to authenticate.</p>
+        {% endfor %}
+    </div>
+    {% if total_pages > 1 %}
+    <nav class="pagination">
+        {% if current_page > 1 %}<a href="?page={{ current_page - 1 }}" class="pagination__btn">← PREV</a>{% endif %}
+        <span class="pagination__info">{{ current_page }} / {{ total_pages }}</span>
+        {% if current_page < total_pages %}<a href="?page={{ current_page + 1 }}" class="pagination__btn">NEXT →</a>{% endif %}
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
