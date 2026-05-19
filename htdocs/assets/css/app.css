@@ -781,3 +781,43 @@ img { display: block; max-width: 100%; }
   margin-top: 0.75rem;
   flex-wrap: wrap;
 }
+
+/* ── Asset browser ───────────────────────────────────────── */
+.asset-locations { margin-bottom: 1.5rem; }
+.asset-location {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: 0.4rem;
+  overflow: hidden;
+}
+.asset-location__summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--color-bg-hover);
+  user-select: none;
+}
+.asset-location__summary:hover { background: var(--color-bg-card); }
+.asset-location__name  { color: var(--color-text); }
+.asset-location__count { color: var(--color-text-muted); }
+.asset-location .skill-table { margin-top: 0; }
+
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.75rem;
+  outline: none;
+}
+.search-input:focus { border-color: var(--color-amber); }
+.asset-row--hidden { display: none; }

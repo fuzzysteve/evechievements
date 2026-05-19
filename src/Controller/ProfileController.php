@@ -34,6 +34,7 @@ final class ProfileController
         echo $this->twig->render('pages/profile.twig', [
             'pilot'      => $pilot,
             'selections' => $this->pilots->getDisplaySelections($pilot['id']),
+            'assets'     => $this->pilots->getDisplayAssets($pilot['id']),
             'is_own'     => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
         ]);
     }
@@ -123,13 +124,13 @@ final class ProfileController
         $this->pilots->saveDisplayCerts($pilotId, $certs);
         $this->pilots->saveDisplayMasteries($pilotId, $masteries);
 
-        // SP — only saveable if skills were fetched
+        // SP
         $sp = null;
         if (($_POST['show_sp'] ?? '') === '1' && isset($fetched['total_sp'])) {
             $sp = (float) $fetched['total_sp'];
         }
 
-        // ISK — only saveable if wallet was fetched
+        // ISK
         $isk = null;
         if (($_POST['show_isk'] ?? '') === '1') {
             $walletFetched = $_SESSION['fetched']['wallet'] ?? null;
@@ -139,6 +140,27 @@ final class ProfileController
         }
 
         $this->pilots->saveDisplaySpIsk($pilotId, $sp, $isk);
+
+        // Assets value
+        $assetsFetched = $_SESSION['fetched']['assets'] ?? null;
+        $assetsValue   = null;
+        if (($_POST['show_assets'] ?? '') === '1' && $assetsFetched !== null) {
+            $assetsValue = (float) $assetsFetched['total_value'];
+        }
+        $this->pilots->saveAssetsValue($pilotId, $assetsValue);
+
+        // Asset display selections — validate against session
+        $assets = [];
+        if ($assetsFetched !== null) {
+            $sessionTypes = array_column($assetsFetched['all_types'], null, 'type_id');
+            foreach ($_POST as $key => $value) {
+                if (!str_starts_with($key, 'asset_') || $value !== '1') continue;
+                $typeId = (int) substr($key, 6);
+                if (!isset($sessionTypes[$typeId])) continue;
+                $assets[] = [$typeId, $sessionTypes[$typeId]['quantity']];
+            }
+        }
+        $this->pilots->saveDisplayAssets($pilotId, $assets);
 
         header('Location: /dashboard?saved=1');
         exit;

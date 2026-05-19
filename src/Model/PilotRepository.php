@@ -30,43 +30,14 @@ final class PilotRepository
         return $row ?: null;
     }
 
-    /**
-     * Create or update a pilot row after OAuth login.
-     */
-    public function upsert(array $data): array
-    {
-        $this->db->prepare(<<<SQL
-            INSERT INTO pilots (id, name, access_token, refresh_token, token_expires, token_scopes, updated_at)
-            VALUES (:id, :name, :access, :refresh, :expires, :scopes, NOW())
-            ON CONFLICT (id) DO UPDATE SET
-                name          = EXCLUDED.name,
-                access_token  = EXCLUDED.access_token,
-                refresh_token = EXCLUDED.refresh_token,
-                token_expires = EXCLUDED.token_expires,
-                token_scopes  = EXCLUDED.token_scopes,
-                updated_at    = NOW()
-        SQL)->execute([
-            'id'      => $data['id'],
-            'name'    => $data['name'],
-            'access'  => $data['access_token'],
-            'refresh' => $data['refresh_token'],
-            'expires' => $data['token_expires'],
-            'scopes'  => '{' . implode(',', $data['scopes'] ?? []) . '}',
-        ]);
-        return $this->findById($data['id']);
-    }
 
-    /**
-     * Public pilot listing for the Browse page.
-     */
     public function getPublicPilots(int $page = 1, int $perPage = 24): array
     {
         $offset = ($page - 1) * $perPage;
         $stmt   = $this->db->prepare(<<<SQL
             SELECT p.*,
                    COUNT(pt.trophy_id) AS trophy_count,
-                   SUM(CASE WHEN t.rarity = 'epic' THEN 1 ELSE 0 END) AS epic_count,
-                   (SELECT SUM(skillpoints_in_skill) FROM pilot_skills WHERE pilot_id = p.id) AS total_sp
+                   SUM(CASE WHEN t.rarity = 'epic' THEN 1 ELSE 0 END) AS epic_count
             FROM pilots p
             LEFT JOIN pilot_trophies pt ON pt.pilot_id = p.id
             LEFT JOIN trophies t ON t.id = pt.trophy_id
@@ -86,17 +57,10 @@ final class PilotRepository
         return (int) $this->db->query('SELECT COUNT(*) FROM pilots WHERE is_public = true')->fetchColumn();
     }
 
-    /**
-     * Pilot stats for the profile page.
-     */
     public function getStats(int $pilotId): array
     {
         $row = $this->db->prepare(<<<SQL
             SELECT
-                (SELECT SUM(skillpoints_in_skill) FROM pilot_skills WHERE pilot_id = p.id) AS total_sp,
-                (SELECT COUNT(*) FROM pilot_skills WHERE pilot_id = p.id AND trained_level = 5) AS skills_at_v,
-                (SELECT COUNT(*) FROM killmails WHERE pilot_id = p.id AND is_victim = false) AS kills,
-                (SELECT COUNT(*) FROM killmails WHERE pilot_id = p.id AND is_victim = true)  AS losses,
                 (SELECT COUNT(DISTINCT corporation_id) FROM corp_history WHERE pilot_id = p.id) AS corps_count,
                 EXTRACT(YEAR FROM AGE(NOW(), p.birthday)) AS years_old
             FROM pilots p WHERE p.id = ?
@@ -111,14 +75,23 @@ final class PilotRepository
                  ->execute([$isPublic, $pilotId]);
     }
 
+    // ── SP / ISK / Assets value ───────────────────────────────────────────────
+
     public function saveDisplaySpIsk(int $pilotId, ?float $sp, ?float $isk): void
     {
         $displaySp  = $sp  !== null ? $this->roundSigFigs($sp)  : -1;
         $displayIsk = $isk !== null ? $this->roundSigFigs($isk) : -1;
-
         $this->db->prepare(
             'UPDATE pilots SET sp = ?, isk = ?, updated_at = NOW() WHERE id = ?'
         )->execute([$displaySp, $displayIsk, $pilotId]);
+    }
+
+    public function saveAssetsValue(int $pilotId, ?float $value): void
+    {
+        $rounded = $value !== null ? $this->roundSigFigs($value) : -1;
+        $this->db->prepare(
+            'UPDATE pilots SET assets_value = ?, updated_at = NOW() WHERE id = ?'
+        )->execute([$rounded, $pilotId]);
     }
 
     private function roundSigFigs(float $value, int $figs = 3): float
@@ -131,10 +104,6 @@ final class PilotRepository
 
     // ── Display selections ────────────────────────────────────────────────────
 
-    /**
-     * Replace all display skill selections for a pilot.
-     * $skills = [[skill_id, level], ...]
-     */
     public function saveDisplaySkills(int $pilotId, array $skills): void
     {
         $this->db->prepare('DELETE FROM pilot_display_skills WHERE pilot_id = ?')->execute([$pilotId]);
@@ -146,10 +115,6 @@ final class PilotRepository
         }
     }
 
-    /**
-     * Replace all display cert selections for a pilot.
-     * $certs = [[cert_id, level], ...]
-     */
     public function saveDisplayCerts(int $pilotId, array $certs): void
     {
         $this->db->prepare('DELETE FROM pilot_display_certs WHERE pilot_id = ?')->execute([$pilotId]);
@@ -161,10 +126,6 @@ final class PilotRepository
         }
     }
 
-    /**
-     * Replace all display mastery selections for a pilot.
-     * $masteries = [[type_id, level], ...]
-     */
     public function saveDisplayMasteries(int $pilotId, array $masteries): void
     {
         $this->db->prepare('DELETE FROM pilot_display_masteries WHERE pilot_id = ?')->execute([$pilotId]);
@@ -176,12 +137,33 @@ final class PilotRepository
         }
     }
 
-    /**
-     * Load all display selections for a pilot — for rendering the dashboard checkboxes.
-     */
+    public function saveDisplayAssets(int $pilotId, array $assets): void
+    {
+        $this->db->prepare('DELETE FROM pilot_display_assets WHERE pilot_id = ?')->execute([$pilotId]);
+        $stmt = $this->db->prepare(
+            'INSERT INTO pilot_display_assets (pilot_id, type_id, quantity) VALUES (?, ?, ?)'
+        );
+        foreach ($assets as [$typeId, $quantity]) {
+            $stmt->execute([$pilotId, $typeId, $quantity]);
+        }
+    }
+
+    public function getDisplayAssets(int $pilotId): array
+    {
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT da.type_id, da.quantity,
+                   COALESCE(t."typeName", 'Unknown #' || da.type_id::text) AS type_name
+            FROM pilot_display_assets da
+            LEFT JOIN evesde."invTypes" t ON t."typeID" = da.type_id
+            WHERE da.pilot_id = ?
+            ORDER BY t."typeName"
+        SQL);
+        $stmt->execute([$pilotId]);
+        return $stmt->fetchAll();
+    }
+
     public function getDisplaySelections(int $pilotId): array
     {
-        // Skills with names from evesde
         $skills = $this->db->prepare(<<<SQL
             SELECT ds.skill_id, ds.level AS active_level, ds.level AS trained_level,
                    COALESCE(t."typeName", 'Unknown #' || ds.skill_id::text) AS skill_name
@@ -192,7 +174,6 @@ final class PilotRepository
         SQL);
         $skills->execute([$pilotId]);
 
-        // Certs with names from evesde
         $certs = $this->db->prepare(<<<SQL
             SELECT dc.cert_id, dc.level,
                    COALESCE(c.name, 'Cert #' || dc.cert_id::text) AS cert_name
@@ -203,7 +184,6 @@ final class PilotRepository
         SQL);
         $certs->execute([$pilotId]);
 
-        // Masteries with type names from evesde
         $masteries = $this->db->prepare(<<<SQL
             SELECT dm.type_id, dm.mastery_level,
                    COALESCE(t."typeName", 'Type #' || dm.type_id::text) AS type_name
@@ -214,28 +194,74 @@ final class PilotRepository
         SQL);
         $masteries->execute([$pilotId]);
 
-        // SP/ISK display flags
-        $spIsk = $this->db->prepare(
-            'SELECT sp, isk FROM pilots WHERE id = ?'
-        );
-        $spIsk->execute([$pilotId]);
-        $flags = $spIsk->fetch();
+        $flags = $this->db->prepare('SELECT sp, isk, assets_value FROM pilots WHERE id = ?');
+        $flags->execute([$pilotId]);
+        $f = $flags->fetch();
 
-        // For checkbox state — keyed by ID
-        $skillsRaw     = $skills->fetchAll();
-        $certsRaw      = $certs->fetchAll();
-        $masteriesRaw  = $masteries->fetchAll();
+        $skillsRaw    = $skills->fetchAll();
+        $certsRaw     = $certs->fetchAll();
+        $masteriesRaw = $masteries->fetchAll();
+        $assetsRaw    = $this->getDisplayAssets($pilotId);
 
         return [
-            'skills'      => $skillsRaw,
-            'certs'       => $certsRaw,
-            'masteries'   => $masteriesRaw,
-            // Keyed versions for checkbox checked state in dashboard
-            'skill_ids'   => array_column($skillsRaw,    null, 'skill_id'),
-            'cert_ids'    => array_column($certsRaw,     null, 'cert_id'),
-            'mastery_ids' => array_column($masteriesRaw, null, 'type_id'),
-            'show_sp'     => ($flags['sp']  ?? -1) != -1,
-            'show_isk'    => ($flags['isk'] ?? -1) != -1,
+            'skills'       => $skillsRaw,
+            'certs'        => $certsRaw,
+            'masteries'    => $masteriesRaw,
+            'skill_ids'    => array_column($skillsRaw,    null, 'skill_id'),
+            'cert_ids'     => array_column($certsRaw,     null, 'cert_id'),
+            'mastery_ids'  => array_column($masteriesRaw, null, 'type_id'),
+            'asset_ids'    => array_column($assetsRaw,    null, 'type_id'),
+            'show_sp'      => ($f['sp']           ?? -1) != -1,
+            'show_isk'     => ($f['isk']          ?? -1) != -1,
+            'show_assets'  => ($f['assets_value'] ?? -1) != -1,
         ];
+    }
+
+    public function createById(int $characterId, \App\Service\EsiService $esi): ?array
+    {
+        $char = $esi->getCharacter($characterId);
+
+        $corpName       = null;
+        $corpTicker     = null;
+        $allianceName   = null;
+        $allianceTicker = null;
+
+        if (isset($char['corporation_id'])) {
+            $corp       = $esi->getCorporation($char['corporation_id']);
+            $corpName   = $corp['name']   ?? null;
+            $corpTicker = $corp['ticker'] ?? null;
+        }
+        if (isset($char['alliance_id'])) {
+            $alliance       = $esi->getAlliance($char['alliance_id']);
+            $allianceName   = $alliance['name']   ?? null;
+            $allianceTicker = $alliance['ticker'] ?? null;
+        }
+
+        $this->db->prepare(<<<SQL
+            INSERT INTO pilots
+                (id, name, corporation_id, corporation_name, corporation_ticker,
+                 alliance_id, alliance_name, alliance_ticker,
+                 security_status, birthday, race_id, bloodline_id, created_at, updated_at)
+            VALUES
+                (:id, :name, :corp_id, :corp_name, :corp_ticker,
+                 :alliance_id, :alliance_name, :alliance_ticker,
+                 :sec, :birthday, :race_id, :bloodline_id, NOW(), NOW())
+            ON CONFLICT (id) DO NOTHING
+        SQL)->execute([
+            'id'             => $characterId,
+            'name'           => $char['name'],
+            'corp_id'        => $char['corporation_id']  ?? null,
+            'corp_name'      => $corpName,
+            'corp_ticker'    => $corpTicker,
+            'alliance_id'    => $char['alliance_id']     ?? null,
+            'alliance_name'  => $allianceName,
+            'alliance_ticker'=> $allianceTicker,
+            'sec'            => $char['security_status'] ?? 0,
+            'birthday'       => $char['birthday']        ?? null,
+            'race_id'        => $char['race_id']         ?? null,
+            'bloodline_id'   => $char['bloodline_id']    ?? null,
+        ]);
+
+        return $this->findById($characterId);
     }
 }

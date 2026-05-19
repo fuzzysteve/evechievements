@@ -56,6 +56,7 @@
             {% endif %}
         </section>
 
+                <form method="POST" action="/dashboard/display">
         {# ── Assets ───────────────────────────────────────────────────────── #}
         <section class="data-section">
             <div class="data-section__header">
@@ -64,11 +65,73 @@
                     {{ session.fetched.assets is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
             </div>
+
             {% if session.fetched.assets is defined %}
+            {% set assetData = session.fetched.assets %}
             <div class="data-section__body">
-                <div class="stat">
-                    <span class="stat__value">{{ session.fetched.assets.count|number_format }}</span>
-                    <span class="stat__label">ASSET LINES</span>
+                <div class="stat-row" style="margin-bottom:1.5rem">
+                    <div class="stat">
+                        <span class="stat__value">{{ assetData.total_count|number_format }}</span>
+                        <span class="stat__label">TOTAL ITEMS</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__value">{{ assetData.total_value|sig_figs }} ISK</span>
+                        <span class="stat__label">EST. VALUE</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat__value">{{ assetData.by_location|length }}</span>
+                        <span class="stat__label">LOCATIONS</span>
+                    </div>
+                </div>
+
+                {# Location breakdown #}
+                <div class="asset-locations">
+                    {% for loc in assetData.by_location %}
+                    <details class="asset-location">
+                        <summary class="asset-location__summary">
+                            <span class="asset-location__name">{{ loc.location_name }}</span>
+                            <span class="asset-location__count">{{ loc.item_count }} items</span>
+                        </summary>
+                        <table class="skill-table">
+                            <thead><tr><th>Type</th><th>Qty</th></tr></thead>
+                            <tbody>
+                                {% for item in loc.items %}
+                                <tr>
+                                    <td>{{ item.type_name }}</td>
+                                    <td>{{ item.quantity|number_format }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                    {% endfor %}
+                </div>
+
+                {# Searchable type list for display selection (inside the main form below) #}
+                <div class="asset-select">
+                    <h3 class="selection-group__title" style="margin-top:1.5rem">
+                        SELECT ITEMS TO SHOW ON PUBLIC PROFILE
+                        <span class="selection-group__hint">— quantity shown, no location</span>
+                    </h3>
+                    <input type="text" id="asset-search" placeholder="Filter types…" class="search-input">
+                    <table class="skill-table" id="asset-table">
+                        <thead><tr><th>Show</th><th>Type</th><th>Total Qty</th><th>Est. Value</th></tr></thead>                        
+                        <tbody>
+                            {% for item in assetData.all_types %}
+                            <tr class="asset-row">
+                                <td>
+                                    <input type="checkbox"
+                                           name="asset_{{ item.type_id }}"
+                                           value="1"
+                                           {% if selections.asset_ids is defined and selections.asset_ids[item.type_id] is defined %}checked{% endif %}>
+                                </td>
+                                <td>{{ item.type_name }}</td>
+                                <td>{{ item.quantity|number_format }}</td>
+                                <td>{{ item.total_value|sig_figs }} ISK</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             {% else %}
@@ -107,7 +170,6 @@
                     </div>
                 </div>
 
-                <form method="POST" action="/dashboard/display">
 
                     {# Skills #}
                     <div class="selection-group">
@@ -241,6 +303,12 @@
                                     {% if selections.show_isk %}checked{% endif %}
                                     {% if session.fetched.wallet is not defined %}disabled title="Load wallet first"{% endif %}>
                                 <span>Show ISK ({{ session.fetched.wallet is defined ? (session.fetched.wallet.balance|sig_figs ~ ' ISK') : 'load wallet first' }})</span>
+                            </label>
+                            <label class="display-toggle">
+                                <input type="checkbox" name="show_assets" value="1"
+                                    {% if selections.show_assets %}checked{% endif %}
+                                    {% if session.fetched.assets is not defined %}disabled title="Load assets first"{% endif %}>
+                                <span>Show asset value ({{ session.fetched.assets is defined ? (session.fetched.assets.total_value|sig_figs ~ ' ISK') : 'load assets first' }})</span>
                             </label>
                         </div>
                         <button type="submit" class="btn btn--primary">SAVE DISPLAY SELECTIONS</button>

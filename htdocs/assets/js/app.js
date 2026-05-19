@@ -16,4 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
             this.closest('form').submit();
         });
     }
+
+    // Asset type search filter
+    const assetSearch = document.getElementById('asset-search');
+    if (assetSearch) {
+        assetSearch.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('#asset-table .asset-row').forEach(row => {
+                const name = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                row.classList.toggle('asset-row--hidden', !name.includes(term));
+            });
+        });
+    }
 });

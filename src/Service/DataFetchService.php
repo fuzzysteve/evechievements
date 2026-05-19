@@ -225,9 +225,111 @@ final class DataFetchService
     private function fetchAssets(int $characterId, string $token): array
     {
         $assets = $this->esi->getAssets($characterId, $token);
+        $db     = Database::connect();
+
+        // ── Resolve type names from evesde ────────────────────────────────
+        $typeIds      = array_values(array_unique(array_column($assets, 'type_id')));
+        $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+        $stmt         = $db->prepare(
+            "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+        );
+        $stmt->execute($typeIds);
+        $typeNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
+
+        // ── Resolve location names from mapDenormalize (id <= 65000000 only) ──
+        $locationIds = array_values(array_unique(array_column($assets, 'location_id')));
+        $resolveIds  = array_values(array_filter($locationIds, fn($id) => $id <= 65000000));
+
+        $locationNames = [];
+        if (!empty($resolveIds)) {
+            $placeholders = implode(',', array_fill(0, count($resolveIds), '?'));
+            $stmt = $db->prepare(
+                "SELECT \"itemID\", \"itemName\" FROM evesde.\"mapDenormalize\" WHERE \"itemID\" IN ({$placeholders})"
+            );
+            $stmt->execute(array_values($resolveIds));
+            $locationNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [itemID => itemName]
+        }
+
+        // ── Get adjusted prices (no auth needed) ─────────────────────────
+        $prices     = $this->esi->getMarketPrices();
+        $totalValue = 0.0;
+
+        // ── Group assets by location, aggregate quantities per type ───────
+        $byLocation = []; // [locationId => [typeName => [type_id, quantity, value]]]
+
+        foreach ($assets as $asset) {
+            $typeId     = $asset['type_id'];
+            $locationId = $asset['location_id'];
+            $quantity   = $asset['quantity'] ?? 1;
+            $typeName   = $typeNames[$typeId] ?? "Unknown #{$typeId}";
+
+            // Accumulate value
+            $adjustedPrice = $prices[$typeId]['adjusted_price'] ?? 0;
+            $totalValue   += $adjustedPrice * $quantity;
+
+            // Group by location
+            $locKey = $locationId;
+            if (!isset($byLocation[$locKey])) {
+                $byLocation[$locKey] = [
+                    'location_id'   => $locationId,
+                    'location_name' => $locationNames[$locationId] ?? 'Unknown Location',
+                    'items'         => [],
+                    'item_count'    => 0,
+                ];
+            }
+
+            // Aggregate quantities for same type in same location
+            if (isset($byLocation[$locKey]['items'][$typeId])) {
+                $byLocation[$locKey]['items'][$typeId]['quantity'] += $quantity;
+            } else {
+                $byLocation[$locKey]['items'][$typeId] = [
+                    'type_id'   => $typeId,
+                    'type_name' => $typeName,
+                    'quantity'  => $quantity,
+                ];
+            }
+
+            $byLocation[$locKey]['item_count']++;
+        }
+
+        // Sort locations by name, items within each location by name
+        foreach ($byLocation as &$loc) {
+            usort($loc['items'], fn($a, $b) => strcmp($a['type_name'], $b['type_name']));
+            $loc['items'] = array_values($loc['items']);
+        }
+        unset($loc);
+
+        usort($byLocation, fn($a, $b) => strcmp($a['location_name'], $b['location_name']));
+
+        // Also build a flat list of all types with total quantities across all locations
+        // for the display selection (user picks types to show, not locations)
+	$allTypes = [];
+	foreach ($assets as $asset) {
+            $typeId   = $asset['type_id'];
+            $quantity = $asset['quantity'] ?? 1;
+            $adjustedPrice = $prices[$typeId]['adjusted_price'] ?? 0;
+
+            if (isset($allTypes[$typeId])) {
+                $allTypes[$typeId]['quantity']    += $quantity;
+                $allTypes[$typeId]['total_value'] += $adjustedPrice * $quantity;
+            } else {
+                $allTypes[$typeId] = [
+                    'type_id'     => $typeId,
+                    'type_name'   => $typeNames[$typeId] ?? "Unknown #{$typeId}",
+                    'quantity'    => $quantity,
+                    'unit_price'  => $adjustedPrice,
+                    'total_value' => $adjustedPrice * $quantity,
+		];
+	    }
+        }
+
+        usort($allTypes, fn($a, $b) => strcmp($a['type_name'], $b['type_name']));
+
         return [
-            'count'  => count($assets),
-            'assets' => $assets,
+            'total_value' => $totalValue,
+            'total_count' => count($assets),
+            'by_location' => $byLocation,
+            'all_types'   => array_values($allTypes),
         ];
     }
 }

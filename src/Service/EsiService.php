@@ -46,10 +46,6 @@ final class EsiService
 
     // Authenticated
     public function getSkills(int $id, string $t): array       { return $this->get("characters/{$id}/skills/", $t); }
-    public function getSkillQueue(int $id, string $t): array   { return $this->get("characters/{$id}/skillqueue/", $t); }
-    public function getKillmailHeaders(int $id, string $t, int $p = 1): array {
-        return $this->get("characters/{$id}/killmails/recent/", $t, ['page' => $p]);
-    }
     public function getLocation(int $id, string $t): array { return $this->get("characters/{$id}/location/", $t); }
 
     public function getWalletBalance(int $id, string $t): float
@@ -62,9 +58,26 @@ final class EsiService
         return (float) (string) $response->getBody();
     }
 
-    public function getAssets(int $id, string $t, int $p = 1): array
+    public function getMarketPrices(): array
     {
-        return $this->get("characters/{$id}/assets/", $t, ['page' => $p]);
+        // Returns all type adjusted/average prices — no auth needed
+        // Result is keyed by type_id for easy lookup
+        $prices = $this->get('markets/prices/');
+        return array_column($prices, null, 'type_id');
+    }
+
+    public function getAssets(int $id, string $t): array
+    {
+        $all  = [];
+        $page = 1;
+
+        do {
+            $results = $this->get("characters/{$id}/assets/", $t, ['page' => $page]);
+            $all     = array_merge($all, $results);
+            $page++;
+        } while (count($results) === 1000);
+
+        return $all;
     }
 
     private function get(string $path, ?string $token = null, array $query = []): array
