@@ -99,7 +99,18 @@ final class DataFetchService
      *                             masteries: [typeID => highestLevel]
      */
     private function calculateCertsAndMasteries(array $skillLevels, PDO $db): array
-    {
+    {   
+
+
+	// Load ship skill requirements [typeID][skillID => level]
+        $stmt = $db->query(
+            'SELECT "typeID", "skillID", "level" FROM evesde."shipSkills"'
+        );
+        $shipSkillReqs = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $shipSkillReqs[$row['typeID']][$row['skillID']] = $row['level'];
+        }
+
         // Load all cert skill requirements in one query
         // [certID][certLevelInt] => [[skillID, skillLevel], ...]
         $stmt = $db->query(
@@ -137,8 +148,9 @@ final class DataFetchService
 
         // Load mastery requirements
         // [typeID][masteryLevel] => [certID, ...]
+            #'SELECT "typeID", "masteryLevel", "certID" FROM evesde."certMasteries" join evesde."invTypes" on evesde."certMasteries"."typeID"=evesde."invTypes"."typeID" where evesde."invTypes".published=true ORDER BY "typeID", "masteryLevel"'
         $stmt = $db->query(
-            'SELECT "typeID", "masteryLevel", "certID" FROM evesde."certMasteries" ORDER BY "typeID", "masteryLevel"'
+            'SELECT "certMasteries"."typeID", "masteryLevel", "certID" FROM evesde."certMasteries" join evesde."invTypes" on evesde."certMasteries"."typeID"=evesde."invTypes"."typeID" join evesde."invGroups" on evesde."invTypes"."groupID"=evesde."invGroups"."groupID" where evesde."invTypes".published=true and evesde."invGroups"."categoryID"=6 ORDER BY "typeID", "masteryLevel"'
         );
         $masteryReqs = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -149,12 +161,26 @@ final class DataFetchService
         // A mastery level is complete when ALL its required certs are complete
         // at ANY level (the cert just needs to be completed, not at a specific level)
         $completedMasteries = []; // [typeID => highestLevel]
-        foreach ($masteryReqs as $typeId => $levels) {
+	foreach ($masteryReqs as $typeId => $levels) {
+            // Check pilot can fly the ship first
+            $canFly = true;
+            foreach ($shipSkillReqs[$typeId] ?? [] as $skillId => $required) {
+                if (($skillLevels[$skillId] ?? 0) < $required) {
+                    $canFly = false;
+                    break;
+                }
+            }
+            if (!$canFly) continue;
+
+
+
+
             $highest = 0;
             foreach ($levels as $masteryLevel => $certIds) {
-                $complete = true;
+		$complete = true;
                 foreach ($certIds as $certId) {
-                    if (!isset($completedCerts[$certId])) {
+                    $completedLevel = $completedCerts[$certId] ?? 0;
+                    if ($completedLevel < $masteryLevel+1) {  // cert must be complete at >= mastery level
                         $complete = false;
                         break;
                     }

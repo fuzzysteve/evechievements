@@ -57,7 +57,13 @@ final class Router
                 => (new ProfileController($this->twig, $this->pilots, $this->trophies))->saveDisplaySelections(),
 
             $method === 'POST' && $path === '/dashboard/visibility'
-                => (new ProfileController($this->twig, $this->pilots, $this->trophies, $this->logger))->updateVisibility(),
+	        => (new ProfileController($this->twig, $this->pilots, $this->trophies, $this->logger))->updateVisibility(),
+
+            $method === 'GET' && str_starts_with($path, '/debug/mastery/')
+                => $this->debugMastery((int) substr($path, 15)),
+
+
+
             default => $this->notFound($path),
         };
     }
@@ -84,4 +90,49 @@ final class Router
             $this->pilots
         );
     }
+
+    private function debugMastery(int $typeId): void
+    {
+    if (empty($_SESSION['pilot_id'])) { echo 'Not logged in'; return; }
+
+    $db          = \App\Config\Database::connect();
+    $skillLevels = $_SESSION['fetched']['skills']
+        ? array_column($_SESSION['fetched']['skills']['skills'], 'active_skill_level', 'skill_id')
+        : [];
+
+    // What masteries are required for this ship?
+    $stmt = $db->prepare(
+        'SELECT "masteryLevel", "certID" FROM evesde."certMasteries" WHERE "typeID" = ? ORDER BY "masteryLevel"'
+    );
+    $stmt->execute([$typeId]);
+    $masteryReqs = $stmt->fetchAll();
+
+    // For each cert, what skills are required and what does the pilot have?
+    echo "<pre>";
+    echo "Ship typeID: {$typeId}\n\n";
+
+    foreach ($masteryReqs as $req) {
+        $certId       = $req['certID'];
+        $masteryLevel = $req['masteryLevel'];
+
+        $skillReqs = $db->prepare(
+            'SELECT "certLevelInt", "skillID", "skillLevel" FROM evesde."certSkills" WHERE "certID" = ? ORDER BY "certLevelInt", "skillID"'
+        );
+        $skillReqs->execute([$certId]);
+
+        echo "Mastery {$masteryLevel} → certID {$certId}:\n";
+        foreach ($skillReqs->fetchAll() as $sr) {
+            $have    = $skillLevels[$sr['skillID']] ?? 0;
+            $need    = $sr['skillLevel'];
+            $ok      = $have >= $need ? '✓' : '✗';
+            echo "  {$ok} certLevel {$sr['certLevelInt']} skillID {$sr['skillID']} need:{$need} have:{$have}\n";
+        }
+        echo "\n";
+    }
+    echo "</pre>";
+    }
+
+
+
+
 }
