@@ -212,6 +212,66 @@ final class PilotRepository
         ];
     }
 
+    // ── Titles & achievements ─────────────────────────────────────────────────
+
+    public function syncPublicData(int $pilotId, \App\Service\EsiService $esi): void
+    {
+        $char = $esi->getCharacter($pilotId);
+
+        if (!empty($char['character_title_id'])) {
+            $titleId = $char['character_title_id'];
+            $stmt = $this->db->prepare('SELECT "titleName" FROM evesde."chrTitles" WHERE "titleID" = ?');
+            $stmt->execute([$titleId]);
+            $titleName = $stmt->fetchColumn() ?: $titleId;
+            $this->upsertTitle($pilotId, $titleId, $titleName);
+        }
+
+        $score = isset($char['achievement_score']) ? (int) $char['achievement_score'] : 0;
+        $this->db->prepare(
+            'UPDATE pilots SET achievement_score = ?, last_sync_at = NOW(), updated_at = NOW() WHERE id = ?'
+        )->execute([$score, $pilotId]);
+    }
+
+    public function upsertTitle(int $pilotId, string $titleId, string $titleName): void
+    {
+        $this->db->prepare(<<<SQL
+            INSERT INTO pilot_titles (pilot_id, title_id, title_name)
+            VALUES (?, ?, ?)
+            ON CONFLICT (pilot_id, title_id) DO UPDATE SET
+                last_seen_at = NOW(),
+                title_name   = EXCLUDED.title_name
+        SQL)->execute([$pilotId, $titleId, $titleName]);
+    }
+
+    public function getPilotTitles(int $pilotId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT title_id, title_name, first_seen_at, is_displayed FROM pilot_titles WHERE pilot_id = ? ORDER BY title_name'
+        );
+        $stmt->execute([$pilotId]);
+        return $stmt->fetchAll();
+    }
+
+    public function getDisplayedTitles(int $pilotId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT title_id, title_name FROM pilot_titles WHERE pilot_id = ? AND is_displayed = TRUE ORDER BY title_name'
+        );
+        $stmt->execute([$pilotId]);
+        return $stmt->fetchAll();
+    }
+
+    public function saveDisplayedTitles(int $pilotId, array $titleIds): void
+    {
+        $this->db->prepare('UPDATE pilot_titles SET is_displayed = FALSE WHERE pilot_id = ?')->execute([$pilotId]);
+        if (!empty($titleIds)) {
+            $placeholders = implode(',', array_fill(0, count($titleIds), '?'));
+            $this->db->prepare(
+                "UPDATE pilot_titles SET is_displayed = TRUE WHERE pilot_id = ? AND title_id IN ({$placeholders})"
+            )->execute(array_merge([$pilotId], $titleIds));
+        }
+    }
+
     public function createById(int $characterId, \App\Service\EsiService $esi): ?array
     {
         $char = $esi->getCharacter($characterId);

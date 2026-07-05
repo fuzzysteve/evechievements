@@ -30,11 +30,66 @@
         </div>
     </header>
 
-    {% if app.session.saved is defined %}
+    {% if saved %}
     <div class="alert alert--success">Display selections saved.</div>
     {% endif %}
 
-                <form method="POST" action="/dashboard/display">
+    {# ── Titles & Achievements — standalone, outside the display form ─────── #}
+    <section class="data-section">
+        <div class="data-section__header">
+            <h2 class="section-title">◇ TITLES &amp; ACHIEVEMENTS</h2>
+            <form method="POST" action="/dashboard/fetch-title">
+                <button type="submit" class="btn btn--outline btn--sm">→ FETCH CURRENT TITLE</button>
+            </form>
+        </div>
+        {% if title_fetched %}
+        <div class="alert alert--success">Title fetched from ESI.</div>
+        {% endif %}
+        {% if error == 'esi_failed' %}
+        <div class="alert alert--error">Could not reach ESI — try again shortly.</div>
+        {% endif %}
+        <div class="data-section__body">
+            <div class="stat-row" style="margin-bottom:1.5rem">
+                <div class="stat">
+                    <span class="stat__value">{{ pilot.achievement_score ?? 0 }}</span>
+                    <span class="stat__label">ACHIEVEMENT SCORE</span>
+                </div>
+                <div class="stat">
+                    <span class="stat__value">{{ titles|length }}</span>
+                    <span class="stat__label">TITLES COLLECTED</span>
+                </div>
+            </div>
+            {% if titles|length > 0 %}
+            <form method="POST" action="/dashboard/titles">
+                <div class="selection-group">
+                    <h3 class="selection-group__title">SELECT DISPLAYED TITLE
+                        <span class="selection-group__hint">— cycle titles in-game then revisit this page to collect more</span>
+                    </h3>
+                    <table class="skill-table">
+                        <thead><tr><th>Show</th><th>Title</th><th>First Seen</th></tr></thead>
+                        <tbody>
+                            {% for title in titles %}
+                            <tr>
+                                <td><input type="checkbox" name="display_title[]" value="{{ title.title_id }}"
+                                    {% if title.is_displayed %}checked{% endif %}></td>
+                                <td>{{ title.title_name }}</td>
+                                <td>{{ title.first_seen_at|date('Y-m-d') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-actions" style="margin-top:1rem">
+                    <button type="submit" class="btn btn--primary">SAVE TITLE SELECTION</button>
+                </div>
+            </form>
+            {% else %}
+            <p class="data-section__empty">No titles collected yet. Set a title in EVE Online then click → FETCH CURRENT TITLE to capture it.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <form method="POST" action="/dashboard/display">
     <div class="dashboard__sections">
 
         {# ── Wallet ───────────────────────────────────────────────────────── #}

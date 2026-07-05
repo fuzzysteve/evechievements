@@ -26,11 +26,13 @@ final class EsiService
     public function __construct(private readonly LoggerInterface $logger)
     {
         $this->http = new Client([
-            'base_uri' => ($_ENV['ESI_BASE_URL'] ?? 'https://esi.evetech.net/latest') . '/',
+            'base_uri' => ($_ENV['ESI_BASE_URL'] ?? 'https://esi.evetech.net') . '/',
             'timeout'  => 15.0,
             'headers'  => [
-                'Accept'     => 'application/json',
-                'User-Agent' => 'EVEchievements/1.0',
+                'Accept'               => 'application/json',
+                'User-Agent'           => 'EVEchievements/1.0',
+                'X-Tenant'             => 'tranquility',
+                'X-Compatibility-Date' => '2026-06-09',
             ],
         ]);
     }
@@ -51,7 +53,6 @@ final class EsiService
     public function getWalletBalance(int $id, string $t): float
     {
         $options = [
-            'query'   => ['datasource' => 'tranquility'],
             'headers' => ['Authorization' => "Bearer {$t}"],
         ];
         $response = $this->http->get("characters/{$id}/wallet/", $options);
@@ -82,7 +83,10 @@ final class EsiService
 
     private function get(string $path, ?string $token = null, array $query = []): array
     {
-        $options = ['query' => array_merge(['datasource' => 'tranquility'], $query)];
+        $options = [];
+        if (!empty($query)) {
+            $options['query'] = $query;
+        }
         if ($token !== null) {
             $options['headers']['Authorization'] = "Bearer {$token}";
         }
@@ -99,8 +103,7 @@ final class EsiService
     {
         try {
             $response = $this->http->post($path, [
-                'query' => ['datasource' => 'tranquility'],
-                'json'  => $body,
+                'json' => $body,
             ]);
             return json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
         } catch (GuzzleException $e) {

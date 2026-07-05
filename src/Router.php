@@ -53,6 +53,12 @@ final class Router
             $method === 'GET'  && str_starts_with($path, '/pilot/')
                 => (new ProfileController($this->twig, $this->pilots, $this->trophies))
 			->show(urldecode(substr($path, 7))),
+            $method === 'POST' && $path === '/dashboard/fetch-title'
+                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->fetchTitle(),
+
+            $method === 'POST' && $path === '/dashboard/titles'
+                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->saveTitleSelection(),
+
             $method === 'POST' && $path === '/dashboard/display'
                 => (new ProfileController($this->twig, $this->pilots, $this->trophies))->saveDisplaySelections(),
 

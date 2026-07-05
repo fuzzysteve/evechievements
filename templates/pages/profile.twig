@@ -9,6 +9,9 @@
         </div>
         <div class="profile__identity">
             <h1 class="profile__name">{{ pilot.name }}</h1>
+            {% for title in displayed_titles %}
+            <p class="profile__character-title">{{ title.title_name }}</p>
+            {% endfor %}
             {% if pilot.corporation_name %}
             <p class="profile__corp">
                 {{ pilot.corporation_name }}
@@ -34,6 +37,12 @@
                 <div class="stat">
                     <span class="stat__value">{{ pilot.assets_value|sig_figs }} ISK</span>
                     <span class="stat__label">ASSETS</span>
+                </div>
+                {% endif %}
+                {% if pilot.achievement_score is defined and pilot.achievement_score > 0 %}
+                <div class="stat">
+                    <span class="stat__value">{{ pilot.achievement_score|number_format }}</span>
+                    <span class="stat__label">ACHIEVEMENT SCORE</span>
                 </div>
                 {% endif %}
             </div>
@@ -151,7 +160,7 @@
     </section>
     {% endif %}
 
-    {% if selections.skills|length == 0 and selections.certs|length == 0 and selections.masteries|length == 0 and assets|length == 0 and pilot.sp == -1 and pilot.isk == -1 and (pilot.assets_value is not defined or pilot.assets_value == -1) %}
+    {% if selections.skills|length == 0 and selections.certs|length == 0 and selections.masteries|length == 0 and assets|length == 0 and pilot.sp == -1 and pilot.isk == -1 and (pilot.assets_value is not defined or pilot.assets_value == -1) and displayed_titles|length == 0 and (pilot.achievement_score is not defined or pilot.achievement_score == 0) %}
     <p class="empty-state">This capsuleer hasn't chosen to display anything yet.</p>
     {% endif %}
 

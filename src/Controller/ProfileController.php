@@ -32,10 +32,11 @@ final class ProfileController
         }
 
         echo $this->twig->render('pages/profile.twig', [
-            'pilot'      => $pilot,
-            'selections' => $this->pilots->getDisplaySelections($pilot['id']),
-            'assets'     => $this->pilots->getDisplayAssets($pilot['id']),
-            'is_own'     => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
+            'pilot'           => $pilot,
+            'selections'      => $this->pilots->getDisplaySelections($pilot['id']),
+            'assets'          => $this->pilots->getDisplayAssets($pilot['id']),
+            'displayed_titles' => $this->pilots->getDisplayedTitles($pilot['id']),
+            'is_own'          => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
         ]);
     }
 
@@ -48,12 +49,15 @@ final class ProfileController
             exit;
         }
 
-        $pilot      = $this->pilots->findById($pilotId);
-        $selections = $this->pilots->getDisplaySelections($pilotId);
+        $pilot = $this->pilots->findById($pilotId);
 
         echo $this->twig->render('pages/dashboard.twig', [
-            'pilot'      => $pilot,
-            'selections' => $selections,
+            'pilot'         => $pilot,
+            'selections'    => $this->pilots->getDisplaySelections($pilotId),
+            'titles'        => $this->pilots->getPilotTitles($pilotId),
+            'saved'         => isset($_GET['saved']),
+            'title_fetched' => isset($_GET['title_fetched']),
+            'error'         => $_GET['error'] ?? null,
         ]);
     }
 
@@ -70,6 +74,45 @@ final class ProfileController
         $this->pilots->setPublic($pilotId, !$pilot['is_public']);
 
         header('Location: /dashboard');
+        exit;
+    }
+
+    /** POST /dashboard/titles — save which title to display */
+    public function saveTitleSelection(): void
+    {
+        $pilotId = $_SESSION['pilot_id'] ?? null;
+        if ($pilotId === null) {
+            header('Location: /');
+            exit;
+        }
+
+        $submitted = (array) ($_POST['display_title'] ?? []);
+        $owned     = array_column($this->pilots->getPilotTitles($pilotId), 'title_id');
+        $titleIds  = array_values(array_filter($submitted, fn($id) => in_array($id, $owned, true)));
+
+        $this->pilots->saveDisplayedTitles($pilotId, $titleIds);
+        header('Location: /dashboard?saved=1');
+        exit;
+    }
+
+    /** POST /dashboard/fetch-title — pull current title from ESI and store it */
+    public function fetchTitle(): void
+    {
+        $pilotId = $_SESSION['pilot_id'] ?? null;
+        if ($pilotId === null) {
+            header('Location: /');
+            exit;
+        }
+
+        try {
+            $esi = new \App\Service\EsiService(new \Monolog\Logger('esi'));
+            $this->pilots->syncPublicData($pilotId, $esi);
+        } catch (\Throwable) {
+            header('Location: /dashboard?error=esi_failed');
+            exit;
+        }
+
+        header('Location: /dashboard?title_fetched=1');
         exit;
     }
 
