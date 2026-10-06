@@ -1,5 +1,21 @@
 {% extends "layout/base.twig" %}
 {% block title %}{{ pilot.name }} — Ship Tree{% endblock %}
+
+{# Link preview (Discord, Slack, …). Only what the pilot published: their name, portrait and the faction's counts #}
+{% block head %}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="EVEchievements">
+    {% if faction is not null %}
+    <meta property="og:title" content="{{ pilot.name }} — {{ faction.name }} ship tree">
+    <meta property="og:description" content="{{ faction.flyable }} of {{ faction.total }} ships flyable, {{ faction.mastered }} at mastery V.">
+    <meta property="og:url" content="{{ app_url }}/pilot/{{ pilot.id }}/ships?faction={{ faction.faction_id }}">
+    {% else %}
+    <meta property="og:title" content="{{ pilot.name }} — Ship tree">
+    <meta property="og:url" content="{{ app_url }}/pilot/{{ pilot.id }}/ships">
+    {% endif %}
+    <meta property="og:image" content="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=128">
+    <meta name="theme-color" content="#f4a228">
+{% endblock %}
 {% set roman = ['', 'I', 'II', 'III', 'IV', 'V'] %}
 
 {# Tile and box sizes must match ShipTreeLayout::TILE_W / TILE_H / PAD / LABEL #}

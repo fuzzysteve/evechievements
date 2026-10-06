@@ -1,5 +1,17 @@
 {% extends "layout/base.twig" %}
 {% block title %}{{ ship.name }} — Mastery{% endblock %}
+
+{# Link preview (Discord, Slack, …). Generic SDE data only, nothing about any pilot #}
+{% block head %}
+    {% set cert_names = requirements[level]|map(c => c.name)|join(', ') %}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="EVEchievements">
+    <meta property="og:title" content="{{ ship.name }} — Mastery {{ roman[level] }}">
+    <meta property="og:description" content="{{ ship.group_name }}{{ ship.faction_name ? ' · ' ~ ship.faction_name }}. Mastery {{ roman[level] }} needs {{ requirements[level]|length }} certificates: {{ cert_names|slice(0, 200) }}{{ cert_names|length > 200 ? '…' }}">
+    <meta property="og:url" content="{{ app_url }}/ship/{{ ship.type_id }}?level={{ level }}">
+    <meta property="og:image" content="https://images.evetech.net/types/{{ ship.type_id }}/render?size=128">
+    <meta name="theme-color" content="#f4a228">
+{% endblock %}
 {% set roman = ['', 'I', 'II', 'III', 'IV', 'V'] %}
 
 {# One required skill. Requirements only — a pilot's own skill levels are never shown here #}
