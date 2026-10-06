@@ -141,6 +141,22 @@
     </section>
     {% endif %}
 
+    {# ── Ship tree ────────────────────────────────────────────────────────── #}
+    {% if shiptree.factions|length > 0 %}
+    <section class="profile__section">
+        <h2 class="section-title">◇ SHIP TREE</h2>
+        <div class="shiptree-summary">
+            {% for f in shiptree.factions %}
+            <a href="/pilot/{{ pilot.id }}/ships?faction={{ f.faction_id }}" class="faction-tab">
+                <img src="https://images.evetech.net/corporations/{{ f.corporation_id }}/logo?size=32" alt="">
+                <span class="faction-tab__name">{{ f.name }}</span>
+                <span class="faction-tab__count">{{ f.flyable }}/{{ f.total }} · {{ f.mastered }}× V</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     {# ── Assets ───────────────────────────────────────────────────────────── #}
     {% if assets|length > 0 %}
     <section class="profile__section">
@@ -160,7 +176,7 @@
     </section>
     {% endif %}
 
-    {% if selections.skills|length == 0 and selections.certs|length == 0 and selections.masteries|length == 0 and assets|length == 0 and pilot.sp == -1 and pilot.isk == -1 and (pilot.assets_value is not defined or pilot.assets_value == -1) and displayed_titles|length == 0 and (pilot.achievement_score is not defined or pilot.achievement_score == 0) %}
+    {% if selections.skills|length == 0 and selections.certs|length == 0 and selections.masteries|length == 0 and assets|length == 0 and pilot.sp == -1 and pilot.isk == -1 and (pilot.assets_value is not defined or pilot.assets_value == -1) and displayed_titles|length == 0 and shiptree.factions|length == 0 and (pilot.achievement_score is not defined or pilot.achievement_score == 0) %}
     <p class="empty-state">This capsuleer hasn't chosen to display anything yet.</p>
     {% endif %}
 

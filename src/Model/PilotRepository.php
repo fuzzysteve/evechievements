@@ -157,6 +157,50 @@ final class PilotRepository
         return $stmt->fetchAll();
     }
 
+    // ── Ship tree ─────────────────────────────────────────────────────────────
+
+    /**
+     * @param int[] $factionIds  factions to publish a ship tree for
+     * @param array $ships       [[typeID, masteryLevel], ...] flyable ships in those factions
+     */
+    public function saveShipTree(int $pilotId, array $factionIds, array $ships): void
+    {
+        $this->db->prepare('DELETE FROM pilot_display_shiptree_factions WHERE pilot_id = ?')->execute([$pilotId]);
+        $this->db->prepare('DELETE FROM pilot_shiptree_ships WHERE pilot_id = ?')->execute([$pilotId]);
+
+        $stmt = $this->db->prepare(
+            'INSERT INTO pilot_display_shiptree_factions (pilot_id, faction_id) VALUES (?, ?)'
+        );
+        foreach ($factionIds as $factionId) {
+            $stmt->execute([$pilotId, $factionId]);
+        }
+
+        $stmt = $this->db->prepare(
+            'INSERT INTO pilot_shiptree_ships (pilot_id, type_id, mastery_level) VALUES (?, ?, ?)'
+        );
+        foreach ($ships as [$typeId, $level]) {
+            $stmt->execute([$pilotId, $typeId, $level]);
+        }
+    }
+
+    /** @return int[] */
+    public function getShipTreeFactionIds(int $pilotId): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT faction_id FROM pilot_display_shiptree_factions WHERE pilot_id = ? ORDER BY faction_id'
+        );
+        $stmt->execute([$pilotId]);
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    /** @return array [typeID => masteryLevel] for ships the pilot can fly */
+    public function getShipTreeLevels(int $pilotId): array
+    {
+        $stmt = $this->db->prepare('SELECT type_id, mastery_level FROM pilot_shiptree_ships WHERE pilot_id = ?');
+        $stmt->execute([$pilotId]);
+        return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
     public function getDisplaySelections(int $pilotId): array
     {
         $skills = $this->db->prepare(<<<SQL
@@ -206,6 +250,7 @@ final class PilotRepository
             'cert_ids'     => array_column($certsRaw,     null, 'cert_id'),
             'mastery_ids'  => array_column($masteriesRaw, null, 'type_id'),
             'asset_ids'    => array_column($assetsRaw,    null, 'type_id'),
+            'shiptree_ids' => array_flip($this->getShipTreeFactionIds($pilotId)),
             'show_sp'      => ($f['sp']           ?? -1) != -1,
             'show_isk'     => ($f['isk']          ?? -1) != -1,
             'show_assets'  => ($f['assets_value'] ?? -1) != -1,

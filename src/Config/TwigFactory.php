@@ -5,6 +5,7 @@ namespace App\Config;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
+use Twig\TwigFunction;
 
 final class TwigFactory
 {
@@ -33,6 +34,12 @@ final class TwigFactory
                 $v >= 1_000         => round($v / 1_000, 1)         . 'K',
                 default             => (string) $v,
             };
+        }));
+
+        // Cache-busting URL for files under htdocs/ — assets are served with a long max-age
+        $twig->addFunction(new TwigFunction('asset', function (string $path): string {
+            $mtime = @filemtime(ROOT . '/htdocs' . $path);
+            return $mtime ? "{$path}?v={$mtime}" : $path;
         }));
 
         $twig->addFilter(new TwigFilter('rarity_class', fn(string $r): string => "trophy--{$r}"));

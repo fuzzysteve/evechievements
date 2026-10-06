@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace App;
 
-use App\Controller\{AuthController, BrowseController, HomeController, ProfileController};
+use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, ShipController};
 use App\Model\PilotRepository;
-use App\Service\{AuthService, EsiService, DataFetchService, TrophyService};
+use App\Service\{AuthService, EsiService, DataFetchService, ShipTreeService, TrophyService};
 use App\Config\TwigFactory;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -48,22 +48,32 @@ final class Router
                 => (new BrowseController($this->twig, $this->pilots))->index(),
 
             $method === 'GET'  && $path === '/dashboard'
-                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->dashboard(),
+                => $this->profileCtrl()->dashboard(),
+
+            $method === 'GET'  && preg_match('#^/ship/(\d+)$#', $path, $m) === 1
+                => (new ShipController($this->twig, new ShipTreeService()))->show((int) $m[1]),
+
+            // Old pilot-specific mastery pages now live at the generic /ship/{typeID}
+            $method === 'GET'  && preg_match('#^/pilot/\d+/ships/(\d+)$#', $path, $m) === 1
+                => $this->redirect('/ship/' . $m[1] . (isset($_GET['level']) ? '?level=' . (int) $_GET['level'] : ''), 301),
+
+            $method === 'GET'  && preg_match('#^/pilot/(\d+)/ships$#', $path, $m) === 1
+                => $this->profileCtrl()->shipTree((int) $m[1]),
 
             $method === 'GET'  && str_starts_with($path, '/pilot/')
-                => (new ProfileController($this->twig, $this->pilots, $this->trophies))
+                => $this->profileCtrl()
 			->show(urldecode(substr($path, 7))),
             $method === 'POST' && $path === '/dashboard/fetch-title'
-                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->fetchTitle(),
+                => $this->profileCtrl()->fetchTitle(),
 
             $method === 'POST' && $path === '/dashboard/titles'
-                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->saveTitleSelection(),
+                => $this->profileCtrl()->saveTitleSelection(),
 
             $method === 'POST' && $path === '/dashboard/display'
-                => (new ProfileController($this->twig, $this->pilots, $this->trophies))->saveDisplaySelections(),
+                => $this->profileCtrl()->saveDisplaySelections(),
 
             $method === 'POST' && $path === '/dashboard/visibility'
-	        => (new ProfileController($this->twig, $this->pilots, $this->trophies, $this->logger))->updateVisibility(),
+	        => $this->profileCtrl()->updateVisibility(),
 
             $method === 'GET' && str_starts_with($path, '/debug/mastery/')
                 => $this->debugMastery((int) substr($path, 15)),
@@ -88,6 +98,16 @@ final class Router
         ));
         return $log;
     }
+    private function redirect(string $url, int $code): void
+    {
+        header('Location: ' . $url, true, $code);
+    }
+
+    private function profileCtrl(): ProfileController
+    {
+        return new ProfileController($this->twig, $this->pilots, $this->trophies, new ShipTreeService());
+    }
+
     private function authCtrl(): AuthController
     {
         return new AuthController(

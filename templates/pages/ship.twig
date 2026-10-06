@@ -1,0 +1,73 @@
+{% extends "layout/base.twig" %}
+{% block title %}{{ ship.name }} — Mastery{% endblock %}
+{% set roman = ['', 'I', 'II', 'III', 'IV', 'V'] %}
+
+{# One required skill. Requirements only — a pilot's own skill levels are never shown here #}
+{% macro skill_row(skill, roman) %}
+    <li class="req-skill">
+        <span class="req-skill__name">{{ skill.name }}</span>
+        <span class="req-skill__level" title="Level {{ skill.level }} required">
+            {% for i in 1..5 %}<span class="skill-pip skill-pip--{{ i <= skill.level ? 'filled' : 'empty' }}"></span>{% endfor %}
+        </span>
+    </li>
+{% endmacro %}
+
+{% block content %}
+<div class="shiptree">
+
+    <header class="ship-header">
+        <img class="ship-header__render" src="https://images.evetech.net/types/{{ ship.type_id }}/render?size=128" alt="{{ ship.name }}">
+        <div class="ship-header__identity">
+            <span class="shiptree__eyebrow">◇ SHIP MASTERY{% if ship.faction_name %} · {{ ship.faction_name|upper }}{% endif %}</span>
+            <h1 class="shiptree__pilot-name">{{ ship.name }}</h1>
+            <p class="ship-header__group">{{ ship.group_name }}{% if ship.tech_level > 1 %} · Tech {{ roman[ship.tech_level] }}{% endif %}</p>
+        </div>
+    </header>
+
+    <section class="data-section ship-section">
+        <div class="data-section__header">
+            <h2 class="section-title">◇ REQUIRED TO FLY</h2>
+        </div>
+        <div class="data-section__body">
+            <ul class="req-skills">
+                {% for skill in fly_skills %}
+                    {{ _self.skill_row(skill, roman) }}
+                {% endfor %}
+            </ul>
+        </div>
+    </section>
+
+    {# All levels are rendered; app.js switches tabs in place and keeps ?level= in the URL.
+       Without JS the tabs are plain links. #}
+    <nav class="level-tabs" role="tablist">
+        {% for l in 1..5 %}
+        <a href="?level={{ l }}" id="level-tab-{{ l }}" role="tab" data-level="{{ l }}"
+           aria-controls="level-{{ l }}" aria-selected="{{ l == level ? 'true' : 'false' }}"
+           class="level-tab{{ l == level ? ' level-tab--active' }}">
+            MASTERY {{ roman[l] }}
+        </a>
+        {% endfor %}
+    </nav>
+
+    {% for l in 1..5 %}
+    <section class="cert-grid" id="level-{{ l }}" role="tabpanel" aria-labelledby="level-tab-{{ l }}"{{ l != level ? ' hidden' }}>
+        {% for cert in requirements[l] %}
+        <article class="cert-card">
+            <h3 class="cert-card__name" title="{{ cert.description }}">
+                {{ cert.name }} {{ roman[l] }}
+                <span class="cert-card__count">{{ cert.skills|length }} skills</span>
+            </h3>
+            <ul class="req-skills">
+                {% for skill in cert.skills %}
+                    {{ _self.skill_row(skill, roman) }}
+                {% endfor %}
+            </ul>
+        </article>
+        {% else %}
+        <p class="empty-state">No certificates listed for this level.</p>
+        {% endfor %}
+    </section>
+    {% endfor %}
+
+</div>
+{% endblock %}

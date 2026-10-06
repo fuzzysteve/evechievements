@@ -31,6 +31,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+    // Mastery level tabs: switch panels in place, keep ?level= so the URL still links to the tab
+    const levelTabs = document.querySelectorAll('.level-tab[data-level]');
+    const showLevel = (level) => {
+        levelTabs.forEach(tab => {
+            const active = tab.dataset.level === level;
+            tab.classList.toggle('level-tab--active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            document.getElementById('level-' + tab.dataset.level).hidden = !active;
+        });
+    };
+    levelTabs.forEach(tab => {
+        tab.addEventListener('click', e => {
+            e.preventDefault();
+            showLevel(tab.dataset.level);
+            const url = new URL(window.location);
+            url.searchParams.set('level', tab.dataset.level);
+            history.replaceState(null, '', url);
+        });
+    });
+
     document.querySelectorAll('.section-toggle').forEach(btn => {
         btn.addEventListener('click', function() {
             const target = document.getElementById(this.dataset.target);

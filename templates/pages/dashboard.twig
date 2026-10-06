@@ -355,6 +355,60 @@
             <p class="data-section__empty">Authorise ESI to load skills, certificates and masteries.</p>
             {% endif %}
         </section>
+
+        {# ── Ship tree ────────────────────────────────────────────────────── #}
+        <section class="data-section">
+            <div class="data-section__header">
+                <h2 class="section-title">◇ SHIP TREE</h2>
+                {% if selections.shiptree_ids|length > 0 %}
+                <a href="/pilot/{{ pilot.id }}/ships" class="dashboard__profile-link">view ship tree →</a>
+                {% endif %}
+            </div>
+            {% if shiptree_summary is not null %}
+            <div class="data-section__body">
+                <div class="selection-group">
+                    <h3 class="selection-group__title">FACTIONS
+                        <span class="selection-group__hint">— tick to publish that faction's tree with your mastery levels</span>
+                    </h3>
+                    <table class="skill-table">
+                        <thead>
+                            <tr>
+                                <th>Show</th>
+                                <th>Faction</th>
+                                <th>Flyable</th>
+                                <th>Mastery V</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for faction in shiptree_factions %}
+                            {% set summary = shiptree_summary[faction.faction_id] %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox"
+                                           name="shiptree_{{ faction.faction_id }}"
+                                           value="1"
+                                           {% if selections.shiptree_ids[faction.faction_id] is defined %}checked{% endif %}>
+                                </td>
+                                <td>
+                                    <img src="https://images.evetech.net/corporations/{{ faction.corporation_id }}/logo?size=32"
+                                         alt=""
+                                         style="width:20px;height:20px;vertical-align:middle;margin-right:0.4rem;display:inline-block;">
+                                    {{ faction.name }}
+                                </td>
+                                <td>{{ summary.flyable }} / {{ summary.total }}</td>
+                                <td>{{ summary.mastered }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% elseif session.fetched.skills is defined %}
+            <p class="data-section__empty">Your skill data predates ship trees — ↻ REFRESH skills above to choose factions.</p>
+            {% else %}
+            <p class="data-section__empty">Load skills above to choose which factions' ship trees to publish.</p>
+            {% endif %}
+        </section>
             </div>
 
     </div>

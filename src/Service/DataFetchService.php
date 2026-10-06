@@ -80,13 +80,14 @@ final class DataFetchService
         usort($skills, fn($a, $b) => strcmp($a['skill_name'], $b['skill_name']));
 
         // Calculate completed certs and masteries
-        [$certs, $masteries] = $this->calculateCertsAndMasteries($skillLevels, $db);
+        [$certs, $masteries, $flyable] = $this->calculateCertsAndMasteries($skillLevels, $db);
 
         return [
             'total_sp'  => $totalSp,
             'skills'    => $skills,
             'certs'     => $certs,
             'masteries' => $masteries,
+            'flyable'   => $flyable,
         ];
     }
 
@@ -94,9 +95,10 @@ final class DataFetchService
      * Calculate highest completed level for each cert and mastery.
      *
      * @param  array $skillLevels  [skill_id => active_skill_level]
-     * @return array               [certs, masteries]
+     * @return array               [certs, masteries, flyable]
      *                             certs:     [certID => highestLevel]
      *                             masteries: [typeID => highestLevel]
+     *                             flyable:   [typeID, ...] ships the pilot can fly
      */
     private function calculateCertsAndMasteries(array $skillLevels, PDO $db): array
     {   
@@ -161,6 +163,7 @@ final class DataFetchService
         // A mastery level is complete when ALL its required certs are complete
         // at ANY level (the cert just needs to be completed, not at a specific level)
         $completedMasteries = []; // [typeID => highestLevel]
+        $flyable            = []; // [typeID, ...]
 	foreach ($masteryReqs as $typeId => $levels) {
             // Check pilot can fly the ship first
             $canFly = true;
@@ -171,6 +174,7 @@ final class DataFetchService
                 }
             }
             if (!$canFly) continue;
+            $flyable[] = $typeId;
 
 
 
@@ -239,7 +243,7 @@ final class DataFetchService
         uasort($namedCerts,     fn($a, $b) => strcmp($a['name'], $b['name']));
         uasort($namedMasteries, fn($a, $b) => strcmp($a['name'], $b['name']));
 
-        return [$namedCerts, $namedMasteries];
+        return [$namedCerts, $namedMasteries, $flyable];
     }
 
     private function fetchWallet(int $characterId, string $token): array

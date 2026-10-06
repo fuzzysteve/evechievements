@@ -3,6 +3,8 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Model\PilotRepository;
+use App\Service\ShipTreeLayout;
+use App\Service\ShipTreeService;
 use App\Service\TrophyService;
 use App\Config\Database;
 use Twig\Environment;
@@ -12,7 +14,8 @@ final class ProfileController
     public function __construct(
         private readonly Environment     $twig,
         private readonly PilotRepository $pilots,
-        private readonly TrophyService   $trophies
+        private readonly TrophyService   $trophies,
+        private readonly ShipTreeService $shipTree
     ) {}
 
     /** Public profile: /pilot/{name} */
@@ -36,8 +39,80 @@ final class ProfileController
             'selections'      => $this->pilots->getDisplaySelections($pilot['id']),
             'assets'          => $this->pilots->getDisplayAssets($pilot['id']),
             'displayed_titles' => $this->pilots->getDisplayedTitles($pilot['id']),
+            'shiptree'        => $this->publishedShipTree($pilot['id']),
             'is_own'          => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
         ]);
+    }
+
+    /** Public ship tree: /pilot/{id}/ships?faction={factionID} */
+    public function shipTree(int $pilotId): void
+    {
+        $pilot = $this->visiblePilot($pilotId);
+        if ($pilot === null) {
+            return;
+        }
+
+        $published = $this->publishedShipTree($pilotId);
+        $factionId = (int) ($_GET['faction'] ?? 0);
+        if (!isset($published['factions'][$factionId])) {
+            $factionId = array_key_first($published['factions']);
+        }
+
+        echo $this->twig->render('pages/shiptree.twig', [
+            'pilot'      => $pilot,
+            'factions'   => $published['factions'],
+            'faction'    => $factionId !== null ? $published['factions'][$factionId] : null,
+            'layout'     => (new ShipTreeLayout($published['levels']))
+                ->build($factionId !== null ? $this->shipTree->getTree($factionId) : []),
+            'levels'     => $published['levels'],
+            'is_own'     => ($_SESSION['pilot_id'] ?? null) === $pilot['id'],
+        ]);
+    }
+
+    /** The pilot if they exist and the viewer may see them; otherwise renders 404/403 and returns null. */
+    private function visiblePilot(int $pilotId): ?array
+    {
+        $pilot = $this->pilots->findById($pilotId);
+        if ($pilot === null) {
+            http_response_code(404);
+            echo $this->twig->render('pages/404.twig', ['search' => (string) $pilotId]);
+            return null;
+        }
+
+        if (!$pilot['is_public'] && ($_SESSION['pilot_id'] ?? null) !== $pilot['id']) {
+            http_response_code(403);
+            echo $this->twig->render('pages/403.twig');
+            return null;
+        }
+        return $pilot;
+    }
+
+    /** Factions the pilot published, with summaries: ['factions' => [factionID => faction], 'levels' => [typeID => level]] */
+    private function publishedShipTree(int $pilotId): array
+    {
+        $factionIds = array_flip($this->pilots->getShipTreeFactionIds($pilotId));
+        if ($factionIds === []) {
+            return ['factions' => [], 'levels' => []];
+        }
+
+        $levels   = $this->pilots->getShipTreeLevels($pilotId);
+        $summary  = $this->shipTree->summarise($levels);
+        $factions = [];
+        foreach ($this->shipTree->getFactions() as $faction) {
+            if (!isset($factionIds[$faction['faction_id']])) continue;
+            $factions[$faction['faction_id']] = $faction + $summary[$faction['faction_id']];
+        }
+        return ['factions' => $factions, 'levels' => $levels];
+    }
+
+    /** [typeID => masteryLevel] for every ship the pilot can fly, 0 where no mastery is complete. */
+    private function sessionShipLevels(array $skills): array
+    {
+        $levels = array_fill_keys($skills['flyable'], 0);
+        foreach ($skills['masteries'] as $typeId => $mastery) {
+            $levels[$typeId] = $mastery['level'];
+        }
+        return $levels;
     }
 
     /** Dashboard: /dashboard (requires auth) */
@@ -51,7 +126,13 @@ final class ProfileController
 
         $pilot = $this->pilots->findById($pilotId);
 
+        $skills = $_SESSION['fetched']['skills'] ?? null;
+
         echo $this->twig->render('pages/dashboard.twig', [
+            'shiptree_factions' => $this->shipTree->getFactions(),
+            'shiptree_summary'  => isset($skills['flyable'])
+                ? $this->shipTree->summarise($this->sessionShipLevels($skills))
+                : null,
             'pilot'         => $pilot,
             'selections'    => $this->pilots->getDisplaySelections($pilotId),
             'titles'        => $this->pilots->getPilotTitles($pilotId),
@@ -166,6 +247,27 @@ final class ProfileController
         $this->pilots->saveDisplaySkills($pilotId, $skills);
         $this->pilots->saveDisplayCerts($pilotId, $certs);
         $this->pilots->saveDisplayMasteries($pilotId, $masteries);
+
+        // Ship tree — factions validated against the SDE, levels taken from session.
+        // Sessions fetched before ship tree support lack 'flyable'; keep what's saved.
+        if (isset($fetched['flyable'])) {
+            $levels    = $this->sessionShipLevels($fetched);
+            $byFaction = $this->shipTree->getShipIdsByFaction();
+            $factions  = [];
+            $ships     = [];
+            foreach ($_POST as $key => $value) {
+                if (!str_starts_with($key, 'shiptree_') || $value !== '1') continue;
+                $factionId = (int) substr($key, 9);
+                if (!isset($byFaction[$factionId])) continue;
+                $factions[] = $factionId;
+                foreach ($byFaction[$factionId] as $typeId) {
+                    if (isset($levels[$typeId])) {
+                        $ships[] = [$typeId, $levels[$typeId]];
+                    }
+                }
+            }
+            $this->pilots->saveShipTree($pilotId, $factions, $ships);
+        }
 
         // SP
         $sp = null;

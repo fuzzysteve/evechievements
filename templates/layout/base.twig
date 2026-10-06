@@ -6,7 +6,7 @@
     <title>{% block title %}EVEchievements{% endblock %} · Capsuleer Registry</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="{{ asset('/assets/css/app.css') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -38,7 +38,7 @@
         <p><a href="https://store.markeedragon.com/affiliate.php?id=250&redirect=index.php?cat=4"> Get your Eve Online Products at Markee Dragon Game Codes!</a></p>
     </div>
 </footer>
-<script src="/assets/js/app.js"></script>
+<script src="{{ asset('/assets/js/app.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

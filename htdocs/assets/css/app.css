@@ -824,3 +824,226 @@ img { display: block; max-width: 100%; }
 
 .section-collapsible.collapsed { display: none; }
 .section-toggle { background: none; border: none; color: var(--color-amber); cursor: pointer; font-size: 1rem; }
+
+/* ── Ship tree ───────────────────────────────────────────── */
+.shiptree { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+.shiptree__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1.25rem;
+}
+.shiptree__pilot { display: flex; align-items: center; gap: 0.75rem; }
+.shiptree__pilot img {
+  width: 48px; height: 48px;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+.shiptree__pilot > span { display: flex; flex-direction: column; }
+.shiptree__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--color-amber);
+  letter-spacing: 0.12em;
+}
+.shiptree__pilot-name {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+}
+.shiptree__factions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.faction-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-card);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: border-color var(--transition);
+}
+.faction-tab img { width: 24px; height: 24px; }
+.faction-tab:hover { border-color: var(--color-text-muted); }
+.faction-tab--active { border-color: var(--color-amber); background: var(--color-amber-dim); color: #fff; }
+.faction-tab__count { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); }
+.shiptree__summary { margin-bottom: 1.5rem; }
+.shiptree__description { margin-top: 0.75rem; color: var(--color-text-muted); max-width: 70ch; }
+
+/* Scrollable frame with the in-game grid behind the tree */
+.shiptree__scroll {
+  overflow-x: auto;
+  padding: 1rem 0 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--color-border-dim) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, var(--color-border-dim) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--color-bg);
+}
+.ship-tile__badge {
+  position: absolute;
+  top: 0; left: 0;
+  min-width: 16px;
+  padding: 0 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  line-height: 14px;
+  color: #000;
+  background: var(--color-amber);
+}
+.ship-tile__badge--t3      { background: #e0602a; }
+.ship-tile__badge--faction { background: var(--color-green); }
+.shiptree__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+.shiptree__legend li { display: flex; align-items: center; gap: 0.4rem; }
+.shiptree__legend .ship-tile__badge { position: static; }
+.legend-swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid var(--color-border); }
+.legend-swatch--mastered { border-color: var(--color-amber); background: var(--color-amber-dim); }
+.legend-swatch--locked   { background: var(--color-text-dim); }
+.shiptree-summary { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* ── Ship mastery requirements ───────────────────────────── */
+.ship-header {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1.25rem;
+}
+.ship-header__render {
+  width: 128px; height: 128px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.ship-header__identity { display: flex; flex-direction: column; gap: 0.35rem; }
+.ship-header__group { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-muted); }
+.ship-section { margin-bottom: 1.25rem; }
+.level-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1rem;
+}
+.level-tab {
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--transition);
+}
+.level-tab:hover { color: var(--color-text); }
+.level-tab--active { color: #fff; border-bottom-color: var(--color-amber); }
+.cert-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  align-items: start;
+  gap: 0.75rem;
+}
+.cert-grid[hidden] { display: none; }       /* display: grid would otherwise override [hidden] */
+.cert-card {
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.cert-card__name {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+  cursor: help;
+}
+.cert-card__count { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); }
+.req-skills { list-style: none; font-family: var(--font-mono); font-size: 0.7rem; }
+.req-skill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--color-border-dim);
+}
+.req-skill:last-child { border-bottom: none; }
+.req-skill__level { white-space: nowrap; }
+
+/* ── Ship tree canvas (positions come from ShipTreeLayout) ── */
+.tree-canvas { position: relative; }
+.tree-canvas__lines { position: absolute; inset: 0; }
+.tree-line       { stroke: var(--color-text-dim); stroke-width: 2; }
+.tree-line--gold { stroke: var(--color-amber); }
+.tree-dot        { fill: var(--color-bg); stroke: var(--color-text-dim); stroke-width: 2; }
+.tree-dot--gold  { stroke: var(--color-amber); }
+.tree-box {
+  position: absolute;
+  padding: 0 4px 4px;                      /* ShipTreeLayout::PAD */
+  background: var(--color-bg-card);
+  box-shadow: inset 0 0 0 1px var(--color-border);   /* a border would eat into the tile width */
+  box-sizing: border-box;
+}
+.tree-box--root { box-shadow: inset 0 0 0 1px var(--color-text-dim); }
+.tree-box__label {
+  height: 20px;                            /* ShipTreeLayout::LABEL + PAD */
+  line-height: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;                     /* runs past narrow boxes, as in-game */
+  cursor: help;
+}
+.tree-box--root .tree-box__label { color: var(--color-amber); }
+.tree-box__ships { display: flex; flex-wrap: wrap; gap: 3px; } /* ShipTreeLayout::GAP */
+.tree-tile {
+  position: relative;
+  width: 44px; height: 50px;               /* ShipTreeLayout::TILE_W / TILE_H */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+.tree-tile:hover { border-color: var(--color-cyan); }
+.tree-tile img { width: 36px; height: 36px; }
+.tree-tile .ship-tile__badge { font-size: 0.45rem; line-height: 11px; min-width: 12px; z-index: 1; }
+.tree-tile__level { display: flex; height: 4px; }
+.tree-tile__level .skill-pip { width: 5px; height: 4px; margin-right: 1px; }
+/* Flyable hulls in full colour, mastery V highlighted gold, ones the pilot can't fly greyed out */
+.tree-tile--mastered {
+  border-color: var(--color-amber);
+  background: var(--color-amber-dim);
+  box-shadow: 0 0 6px var(--color-amber-dim);
+}
+.tree-tile--locked img { filter: grayscale(1) brightness(0.45); opacity: 0.7; }
+.legend-line { display: inline-block; width: 18px; height: 2px; background: var(--color-amber); }
