@@ -4,7 +4,7 @@ namespace App;
 
 use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, SearchController, ShipController};
 use App\Model\PilotRepository;
-use App\Service\{AuthService, EsiService, DataFetchService, ShipInfoService, ShipTreeService, TrophyService};
+use App\Service\{AuthService, EsiService, DataFetchService, ShipInfoService, ShipTreeService};
 use App\Config\TwigFactory;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -15,14 +15,12 @@ final class Router
     private Environment     $twig;
     private Logger          $logger;
     private PilotRepository $pilots;
-    private TrophyService   $trophies;
 
     public function __construct()
     {
         $this->twig     = TwigFactory::create();
         $this->logger   = $this->buildLogger();
         $this->pilots   = new PilotRepository();
-        $this->trophies = new TrophyService($this->logger);
     }
 
     public function dispatch(string $method, string $path): void
@@ -31,7 +29,7 @@ final class Router
 
         match(true) {
             $method === 'GET'  && ($path === '/' || $path === '/index2.php')
-                => (new HomeController($this->twig, $this->trophies, $this->pilots))->index(),
+                => (new HomeController($this->twig))->index(),
 
             $method === 'GET'  && $path === '/auth/login'
                 => $this->authCtrl()->login(),
@@ -115,7 +113,7 @@ final class Router
 
     private function profileCtrl(): ProfileController
     {
-        return new ProfileController($this->twig, $this->pilots, $this->trophies, new ShipTreeService());
+        return new ProfileController($this->twig, $this->pilots, new ShipTreeService());
     }
 
     private function authCtrl(): AuthController

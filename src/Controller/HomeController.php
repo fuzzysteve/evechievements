@@ -2,17 +2,13 @@
 declare(strict_types=1);
 namespace App\Controller;
 
-use App\Service\TrophyService;
-use App\Model\PilotRepository;
 use App\Config\Database;
 use Twig\Environment;
 
 final class HomeController
 {
     public function __construct(
-        private readonly Environment      $twig,
-        private readonly TrophyService    $trophyService,
-        private readonly PilotRepository  $pilots
+        private readonly Environment $twig
     ) {}
 
     public function index(): void

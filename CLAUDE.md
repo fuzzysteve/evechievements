@@ -11,7 +11,8 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
 - `src/Router.php` routes with a `match(true)` on method + path. Order matters: put the more specific
   routes (e.g. `/pilot/{id}/ships`) before the `str_starts_with($path, '/pilot/')` fallback.
   Controllers are built per request. `profileCtrl()` / `authCtrl()` wire their dependencies.
-- No tests. The checks are `php -l`, `vendor/bin/phpstan analyse -l 5 src`, and rendering the page.
+- No tests. The checks are `php -l`, `vendor/bin/phpstan analyse` (config in `phpstan.neon`; its
+  bootstrap defines `ROOT`), and rendering the page.
 
 ## Data model and privacy
 
@@ -65,12 +66,3 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
   The site is dark-only and uses BEM-style class names (`block__element--modifier`). No Bootstrap.
 - Mastery/skill levels use `.skill-pip--filled|empty` (5 pips). Reuse it.
 - `htdocs/assets/js/app.js` is plain JS with no build step.
-
-## Known issues (not yet fixed)
-
-- `.env`, `vendor/` and `logs/` are untracked and there is no `.gitignore`. Never `git add .`.
-- `templates/pages/403.twig` is missing and `404.twig` is empty.
-- `base.twig` checks `app.session.pilot_id`, which is never defined, so the DASHBOARD nav link never
-  shows. It should be `session.pilot_id`.
-- phpstan: `ProfileController::$trophies` is injected but unused. `ROOT` is unknown to phpstan because
-  it is defined in `htdocs/index.php`. A `phpstan.neon` with a bootstrap file that defines it would fix that.

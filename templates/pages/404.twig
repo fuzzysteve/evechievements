@@ -1,0 +1,24 @@
+{% extends "layout/base.twig" %}
+{% block title %}Not found{% endblock %}
+{% block content %}
+<div class="browse error-page">
+    <header class="browse__header">
+        <p class="browse__eyebrow">◇ 404 · NOT FOUND</p>
+        <h1 class="browse__title">Nothing on this frequency</h1>
+    </header>
+    <p class="error-page__text">
+        {% if search is defined %}
+            We couldn't find anything for <code>{{ search }}</code>.
+        {% elseif path is defined %}
+            There's no page at <code>{{ path }}</code>.
+        {% else %}
+            That page doesn't exist.
+        {% endif %}
+        Try searching for a pilot or ship, or browse the public registry.
+    </p>
+    <div class="error-page__actions">
+        <a href="/browse" class="btn btn--primary">BROWSE PILOTS</a>
+        <a href="/" class="btn btn--outline">HOME</a>
+    </div>
+</div>
+{% endblock %}

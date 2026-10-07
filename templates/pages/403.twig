@@ -1,0 +1,17 @@
+{% extends "layout/base.twig" %}
+{% block title %}Private profile{% endblock %}
+{% block content %}
+<div class="browse error-page">
+    <header class="browse__header">
+        <p class="browse__eyebrow">◇ 403 · PRIVATE</p>
+        <h1 class="browse__title">This capsuleer keeps their records private</h1>
+    </header>
+    <p class="error-page__text">
+        Pilots choose whether their profile is public. This one hasn't made theirs visible.
+    </p>
+    <div class="error-page__actions">
+        <a href="/browse" class="btn btn--primary">BROWSE PILOTS</a>
+        <a href="/" class="btn btn--outline">HOME</a>
+    </div>
+</div>
+{% endblock %}

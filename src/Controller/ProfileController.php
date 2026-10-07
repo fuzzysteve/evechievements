@@ -5,7 +5,6 @@ namespace App\Controller;
 use App\Model\PilotRepository;
 use App\Service\ShipTreeLayout;
 use App\Service\ShipTreeService;
-use App\Service\TrophyService;
 use App\Config\Database;
 use Twig\Environment;
 
@@ -14,7 +13,6 @@ final class ProfileController
     public function __construct(
         private readonly Environment     $twig,
         private readonly PilotRepository $pilots,
-        private readonly TrophyService   $trophies,
         private readonly ShipTreeService $shipTree
     ) {}
 
