@@ -27,7 +27,18 @@
         </div>
     </header>
 
-    {# The viewer's own state comes from their session only: shown only to them, never stored #}
+    {% set auth_errors = {
+        no_code:       'The EVE login was cancelled, so your skills weren\'t loaded.',
+        invalid_token: 'EVE login returned a token we couldn\'t read. Try again.',
+        auth_failed:   'Logging in with EVE failed. Try again in a moment.',
+        fetch_failed:  'Your skills couldn\'t be loaded from EVE. Try again.',
+    } %}
+    {% if auth_errors[error] is defined %}
+    <div class="alert alert--error" role="alert">{{ auth_errors[error] }}</div>
+    {% endif %}
+
+    {# The viewer's own state comes from their session only: shown only to them, never stored
+       unless they choose to save it on the dashboard #}
     {% if viewer == 'ready' %}
     <div class="view-switch">
         <nav class="level-tabs view-switch__tabs" aria-label="Tree view">
@@ -35,11 +46,29 @@
             <a href="?faction={{ faction.faction_id }}&amp;view=all" class="level-tab{{ view_all ? ' level-tab--active' }}"{{ view_all ? ' aria-current="page"' }}>ALL SHIPS</a>
         </nav>
         {% if not view_all %}<span class="view-switch__note">Your skills, from your current session. Only you can see this.</span>{% endif %}
+        <span class="view-switch__actions">
+            <a href="/auth/fetch/skills?return={{ return_to|url_encode }}">↻ Refresh skills</a>
+            <a href="/dashboard">Save to your profile →</a>
+        </span>
     </div>
-    {% elseif viewer == 'no_skills' %}
-    <p class="viewer-note">Load your skills on the <a href="/dashboard">dashboard</a> to see this tree with what you can fly. Only you see that.</p>
-    {% elseif viewer == 'stale' %}
-    <p class="viewer-note">Your loaded skills predate ship trees. ↻ Refresh them on the <a href="/dashboard">dashboard</a> to see this tree with what you can fly.</p>
+    {% else %}
+    <div class="ships-cta">
+        <p class="ships-cta__text">
+            {% if viewer is null %}
+                <strong>Which of these can you fly?</strong> Log in with EVE and load your skills to see your own tree.
+            {% elseif viewer == 'stale' %}
+                <strong>Your loaded skills predate ship trees.</strong> Reload them to see which of these you can fly.
+            {% else %}
+                <strong>Which of these can you fly?</strong> Load your skills to see your own tree.
+            {% endif %}
+            <span class="ships-cta__fine">Only the skills permission is requested. Nothing is published unless you save it on your dashboard.</span>
+        </p>
+        {% if viewer is null %}
+        <a href="/auth/login?return={{ return_to|url_encode }}&amp;load=skills" class="btn btn--primary">→ LOG IN &amp; LOAD SKILLS</a>
+        {% else %}
+        <a href="/auth/fetch/skills?return={{ return_to|url_encode }}" class="btn btn--primary">→ LOAD MY SKILLS</a>
+        {% endif %}
+    </div>
     {% endif %}
 
     <nav class="shiptree__factions" aria-label="Factions">

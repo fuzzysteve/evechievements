@@ -76,6 +76,9 @@ final class ShipController
             'summary'   => $levels !== null ? $this->shipTree->summarise($levels) : null,
             'viewer'    => !$loggedIn ? null : ($hasTree ? 'ready' : ($skills === null ? 'no_skills' : 'stale')),
             'view_all'  => $viewAll,
+            // Where the log-in / load-skills buttons bring the viewer back to (their own tree)
+            'return_to' => '/ships?faction=' . $factionId,
+            'error'     => $_GET['error'] ?? null,
             'layout'    => (new ShipTreeLayout($levels ?? []))->build($this->shipTree->getTree($factionId)),
         ]);
     }

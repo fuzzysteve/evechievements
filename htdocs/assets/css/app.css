@@ -1035,3 +1035,23 @@ th[aria-sort="descending"] .sort-btn::after { content: " ▼"; color: var(--colo
 .view-switch__tabs { margin-bottom: 0; }
 .view-switch__note { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); }
 .home-alert { max-width: 1300px; margin: 1.5rem auto 0; padding: 0 2rem; }
+
+/* /ships: log in / load skills call to action */
+.ships-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-amber);
+  border-radius: var(--radius);
+}
+.ships-cta__text { max-width: 70ch; }
+.ships-cta__text strong { color: #fff; font-weight: 500; }
+.ships-cta__fine { display: block; margin-top: 0.25rem; font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); }
+.view-switch__actions { display: flex; gap: 1.25rem; margin-left: auto; font-family: var(--font-mono); font-size: 0.7rem; }
+.view-switch__actions a { color: var(--color-cyan); }
+.view-switch__actions a:hover { color: var(--color-text); }
