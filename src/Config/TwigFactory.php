@@ -47,8 +47,6 @@ final class TwigFactory
             return $mtime ? "{$path}?v={$mtime}" : $path;
         }));
 
-        $twig->addFilter(new TwigFilter('rarity_class', fn(string $r): string => "trophy--{$r}"));
-
         // Round to 3 significant figures and format EVE-style
         $twig->addFilter(new TwigFilter('sig_figs', function (float $value, int $figs = 3): string {
             if ($value == 0) return '0';

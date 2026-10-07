@@ -26,7 +26,7 @@
     <div class="hero__right">
         <p class="hero__card-label">◇ EXAMPLE / Steve Ronuken</p>
         <div class="pilot-card pilot-card--hero">
-            <div class="pilot-card__portrait">i<img src="https://images.evetech.net/characters/90926985/portrait?size=64"></div>
+            <div class="pilot-card__portrait"><img src="https://images.evetech.net/characters/90926985/portrait?size=64"></div>
             <div class="pilot-card__info">
                 <h2 class="pilot-card__name">Steve Ronuken</h2>
                 <p class="pilot-card__corp">Fuzzwork Enterprises [FZZW] · Vote Steve Ronuken for CSM [VOTE]</p>
@@ -39,30 +39,6 @@
                 <div class="stat"><span class="stat__value">285</span><span class="stat__label">Achievement Score</span></div>
             </div>
         </div>
-    </div>
-</section>
-
-<section class="feed">
-    <div class="feed__header">
-        <p class="feed__eyebrow">◇ TROPHIES – LIVE FROM THE REGISTRY</p>
-        <h2 class="feed__title">What pilots are showing off this week</h2>
-        <a href="/browse" class="btn btn--outline btn--sm">BROWSE ALL →</a>
-    </div>
-    <div class="trophy-grid">
-        {% for trophy in recent_trophies %}
-        <a href="/pilot/{{ trophy.pilot_name|url_encode }}" class="trophy-card trophy-card--{{ trophy.rarity }}">
-            <div class="trophy-card__icon-area">
-                <div class="trophy-card__icon"></div>
-            </div>
-            <div class="trophy-card__body">
-                <span class="trophy-card__rarity">{{ trophy.rarity|upper }}</span>
-                <p class="trophy-card__name">{{ trophy.name }}</p>
-                <p class="trophy-card__meta">{{ trophy.category|upper }} · {{ trophy.earned_at|date("Y.m.d") }}</p>
-                <p class="trophy-card__pilot">{{ trophy.pilot_name }}</p>
-            </div>
-            <span class="trophy-card__pct">{{ trophy.earned_pct|number_format(1) }}%</span>
-        </a>
-        {% endfor %}
     </div>
 </section>
 
