@@ -44,8 +44,10 @@ final class AuthService
     /**
      * Section fetch URL — requests a single scope with a signed state
      * carrying the section name so the callback knows what to fetch.
+     * With $login, the same round trip also logs the character in: one EVE login instead of
+     * a scope-less login followed by a second one for the section.
      */
-    public function getSectionUrl(string $section): string
+    public function getSectionUrl(string $section, bool $login = false): string
     {
         if (!isset(self::SECTION_SCOPES[$section])) {
             throw new RuntimeException("Unknown section: {$section}");
@@ -53,6 +55,7 @@ final class AuthService
 
         $payload = json_encode([
             'section' => $section,
+            'login'   => $login,
             'nonce'   => bin2hex(random_bytes(8)),
         ]);
         $state = base64_encode($payload) . '.' . hash_hmac('sha256', $payload, $_ENV['APP_SECRET']);
@@ -118,9 +121,11 @@ final class AuthService
         $token  = $this->provider->getAccessToken('authorization_code', ['code' => $code]);
         $claims = $this->decodeJwt($token->getToken());
 
-        // Verify the character matches who is logged in
+        // Verify the character matches who is logged in — unless this round trip is also the
+        // login (signed into the state above), in which case the token identifies who to log in
         $characterId = (int) explode(':', $claims['sub'])[2];
-        if ($characterId !== (int) ($_SESSION['pilot_id'] ?? 0)) {
+        $login       = ($data['login'] ?? false) === true;
+        if (!$login && $characterId !== (int) ($_SESSION['pilot_id'] ?? 0)) {
             throw new RuntimeException('Character mismatch — token is for a different pilot.');
         }
 
@@ -128,6 +133,8 @@ final class AuthService
             'section'      => $section,
             'access_token' => $token->getToken(),
             'character_id' => $characterId,
+            'login'        => $login,
+            'name'         => $claims['name'] ?? '',
         ];
     }
 

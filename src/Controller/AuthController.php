@@ -16,19 +16,18 @@ final class AuthController
 
     /**
      * Redirects user to EVE SSO with no scopes — identification only.
-     * ?return=/path brings them back there afterwards (same-site paths only); with &load=skills the
-     * skills fetch runs straight after login, so e.g. /ships can log in and load skills in one go.
+     * ?return=/path brings them back there afterwards (same-site paths only). With &load=skills the
+     * login asks for the skills scope instead, so one EVE login both logs in and loads skills.
      */
     public function login(): void
     {
-        unset($_SESSION['auth_return'], $_SESSION['auth_then']);
+        unset($_SESSION['auth_return']);
         if ($return = $this->safeReturn($_GET['return'] ?? null)) {
             $_SESSION['auth_return'] = $return;
         }
-        if (($_GET['load'] ?? '') === 'skills') {
-            $_SESSION['auth_then'] = 'skills';
-        }
-        $url = $this->auth->getLoginUrl();
+        $url = ($_GET['load'] ?? '') === 'skills'
+            ? $this->auth->getSectionUrl('skills', login: true)
+            : $this->auth->getLoginUrl();
         header('Location: ' . $url);
         exit;
     }
@@ -86,25 +85,7 @@ final class AuthController
                 return;
             }
 
-            // Create pilot if they don't exist yet
-            $pilot = $this->pilots->findById($character['id']);
-            if ($pilot === null) {
-                $pilot = $this->pilots->createById($character['id'], new \App\Service\EsiService(
-                    new \Monolog\Logger('esi')
-                ));
-            }
-
-            // New session ID on login, so an ID set before login can't be used afterwards
-            session_regenerate_id(true);
-            $_SESSION['pilot_id']   = $character['id'];
-            $_SESSION['pilot_name'] = $character['name'];
-
-            // Chained skills fetch (e.g. from /ships): the return path stays in the session for it
-            if (($_SESSION['auth_then'] ?? null) === 'skills') {
-                unset($_SESSION['auth_then']);
-                $this->redirect('/auth/fetch/skills');
-                return;
-            }
+            $this->signIn($character['id'], $character['name']);
             $this->redirect($this->takeReturn() ?? '/dashboard');
         } catch (\Throwable $e) {
             error_log('Login callback error: ' . $e->getMessage());
@@ -116,6 +97,10 @@ final class AuthController
     {
         try {
             $result = $this->auth->handleSectionCallback($code, $state);
+            if ($result['login']) {
+                // Login and section fetch in one round trip (e.g. "log in & load skills" on /ships)
+                $this->signIn($result['character_id'], $result['name']);
+            }
 
             $this->dataFetch->fetch(
                 $result['section'],
@@ -137,10 +122,21 @@ final class AuthController
         $this->redirect('/');
     }
 
+    /** Log the character in: create their pilot record if new, fresh session ID, session keys. */
+    private function signIn(int $characterId, string $name): void
+    {
+        if ($this->pilots->findById($characterId) === null) {
+            $this->pilots->createById($characterId, new \App\Service\EsiService(new \Monolog\Logger('esi')));
+        }
+        // New session ID on login, so an ID set before login can't be used afterwards
+        session_regenerate_id(true);
+        $_SESSION['pilot_id']   = $characterId;
+        $_SESSION['pilot_name'] = $name;
+    }
+
     /** Back to the page the flow started from (or $fallback) with ?error=$code. */
     private function fail(string $code, string $fallback): void
     {
-        unset($_SESSION['auth_then']);
         $url = $this->takeReturn() ?? $fallback;
         $this->redirect($url . (str_contains($url, '?') ? '&' : '?') . 'error=' . $code);
     }
