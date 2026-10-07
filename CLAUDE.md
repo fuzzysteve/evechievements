@@ -86,7 +86,9 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
   (`app.js`, data from `/skill/{id}.json` via `SkillService`; SP per level is computed from the rank;
   training times assume 20 in both attributes = 30 SP/min, Omega, no implants). The JSON is cached a day,
   so bump the `?v=` in `app.js` when its shape changes.
-- Mastery training times (`ShipController::viewerProgress`, logged-in viewer only) include prerequisites of
-  unstarted skills and subtract skill points already earned. Skill data is fetched in batches
-  (`SkillService::prerequisiteGraph()` one query per depth, `details()` one query): never query per skill.
+- Training times for the logged-in viewer (mastery levels and time to fly on `/ship/{id}`, time to fly in
+  the `/ships` tile hover text) come from `TrainingPlan`: it includes prerequisites of unstarted skills and
+  subtracts skill points already earned. Skill data is fetched in batches (`prerequisiteGraph()` one
+  query per depth, `details()` one query, `getFlyRequirementsFor()` one query): never query per skill or
+  per ship. Never show these on another pilot's tree.
 - `htdocs/assets/js/app.js` is plain JS with no build step.

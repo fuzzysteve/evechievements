@@ -276,6 +276,31 @@ final class ShipTreeService
         return $stmt->fetchAll();
     }
 
+    /**
+     * Skills needed to fly each of several ships, in one query.
+     *
+     * @param  int[] $typeIds
+     * @return array [typeID => [['skill_id', 'level'], ...]]
+     */
+    public function getFlyRequirementsFor(array $typeIds): array
+    {
+        $typeIds = array_values(array_unique(array_map('intval', $typeIds)));
+        if ($typeIds === []) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT \"typeID\", \"skillID\" AS skill_id, level FROM evesde.\"shipSkills\" WHERE \"typeID\" IN ({$placeholders})"
+        );
+        $stmt->execute($typeIds);
+
+        $requirements = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $requirements[$row['typeID']][] = ['skill_id' => $row['skill_id'], 'level' => $row['level']];
+        }
+        return $requirements;
+    }
+
     /** Skills needed to fly the ship (direct requirements only). */
     public function getFlyRequirements(int $typeId): array
     {

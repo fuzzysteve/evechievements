@@ -1,9 +1,11 @@
 {# Shared ship tree drawing, used by the pilot tree (/pilot/{id}/ships) and the generic tree (/ships).
    `levels` is [typeID => mastery level] for a pilot's flyable ships, or null for the generic tree,
-   where every ship shows in full colour with no mastery state.
+   where every ship shows in full colour with no mastery state. `fly_times` [typeID => minutes] adds
+   "≈ time to fly" to the hover text of ships that can't be flown yet: the logged-in viewer's own
+   tree on /ships only, never another pilot's tree.
    Tile and box sizes must match ShipTreeLayout::TILE_W / TILE_H / PAD / LABEL. #}
 
-{% macro ship_tile(ship, levels, roman) %}
+{% macro ship_tile(ship, levels, roman, fly_times = null) %}
     {% if levels is null %}
         {% set state = 'neutral' %}
         {% set title = ship.name %}
@@ -11,6 +13,9 @@
         {% set level = levels[ship.type_id] ?? null %}
         {% set state = level is null ? 'locked' : (level == 5 ? 'mastered' : 'flyable') %}
         {% set title = ship.name ~ ' — ' ~ (level is null ? 'cannot fly' : (level == 0 ? 'can fly, no mastery' : 'mastery ' ~ roman[level])) %}
+        {% if level is null and fly_times[ship.type_id] is defined %}
+            {% set title = ship.name ~ ' — can\'t fly yet · ≈ ' ~ fly_times[ship.type_id]|duration ~ ' of training to fly' %}
+        {% endif %}
     {% endif %}
     <a href="/ship/{{ ship.type_id }}" class="tree-tile tree-tile--{{ state }}" title="{{ title }}">
         {% if ship.tech_level > 1 %}
@@ -27,7 +32,7 @@
     </a>
 {% endmacro %}
 
-{% macro tree_box(box, levels, roman) %}
+{% macro tree_box(box, levels, roman, fly_times = null) %}
     <div class="tree-box tree-box--{{ box.kind }}"
          style="left:{{ box.x }}px;top:{{ box.y }}px;width:{{ box.w }}px;height:{{ box.h }}px">
         <h3 class="tree-box__label"
@@ -36,13 +41,13 @@
         </h3>
         <div class="tree-box__ships">
             {% for ship in box.node.ships %}
-                {{ _self.ship_tile(ship, levels, roman) }}
+                {{ _self.ship_tile(ship, levels, roman, fly_times) }}
             {% endfor %}
         </div>
     </div>
 {% endmacro %}
 
-{% macro canvas(layout, levels) %}
+{% macro canvas(layout, levels, fly_times = null) %}
     {% set roman = ['', 'I', 'II', 'III', 'IV', 'V'] %}
     <div class="shiptree__scroll">
         <div class="tree-canvas" style="width:{{ layout.width }}px;height:{{ layout.height }}px">
@@ -55,7 +60,7 @@
                 {% endfor %}
             </svg>
             {% for box in layout.boxes %}
-                {{ _self.tree_box(box, levels, roman) }}
+                {{ _self.tree_box(box, levels, roman, fly_times) }}
             {% endfor %}
         </div>
     </div>

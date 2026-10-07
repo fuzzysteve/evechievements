@@ -107,7 +107,7 @@
         {% endif %}
     </div>
 
-    {{ tree.canvas(layout, levels) }}
+    {{ tree.canvas(layout, levels, fly_times) }}
 
     <ul class="shiptree__legend">
         <li><span class="ship-tile__badge ship-tile__badge--t2">II</span> Tech II</li>
@@ -115,7 +115,7 @@
         <li><span class="ship-tile__badge ship-tile__badge--faction">◆</span> Navy / faction</li>
         {% if levels is not null %}
         <li><span class="legend-swatch legend-swatch--mastered"></span> Mastery V</li>
-        <li><span class="legend-swatch legend-swatch--locked"></span> You can't fly</li>
+        <li><span class="legend-swatch legend-swatch--locked"></span> You can't fly (hover for time to fly)</li>
         <li><span class="legend-line"></span> Path to ships you can fly</li>
         {% endif %}
         <li>Hover a class name for its required skills · click a ship for its mastery requirements, attributes and bonuses</li>
