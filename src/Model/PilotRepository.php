@@ -47,6 +47,24 @@ final class PilotRepository
         return $stmt->fetchAll();
     }
 
+    /** Public pilots whose name contains $query; names starting with it first. Private pilots never match. */
+    public function searchPublic(string $query, int $limit): array
+    {
+        $like = addcslashes($query, '%_\\');
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT id, name, corporation_name, alliance_name
+            FROM pilots
+            WHERE is_public = true AND name ILIKE :contains
+            ORDER BY name ILIKE :prefix DESC, name
+            LIMIT :limit
+        SQL);
+        $stmt->bindValue(':contains', "%{$like}%");
+        $stmt->bindValue(':prefix',   "{$like}%");
+        $stmt->bindValue(':limit',    $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function countPublic(): int
     {
         return (int) $this->db->query('SELECT COUNT(*) FROM pilots WHERE is_public = true')->fetchColumn();

@@ -241,6 +241,27 @@ final class ShipTreeService
         return $stmt->fetch() ?: null;
     }
 
+    /** Ships with a /ship/ page whose name contains $query; names starting with it first. */
+    public function searchShips(string $query, int $limit): array
+    {
+        $like = addcslashes($query, '%_\\');
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT t."typeID" AS type_id, t."typeName" AS name, g.name AS group_name,
+                   f."factionName" AS faction_name
+            FROM evesde."invTypes" t
+            JOIN evesde."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
+            LEFT JOIN evesde."chrFactions" f ON f."factionID" = t."factionID"
+            WHERE t."typeName" ILIKE :contains AND {$this->treeShipFilter('t')}
+            ORDER BY t."typeName" ILIKE :prefix DESC, t."typeName"
+            LIMIT :limit
+        SQL);
+        $stmt->bindValue(':contains', "%{$like}%");
+        $stmt->bindValue(':prefix',   "{$like}%");
+        $stmt->bindValue(':limit',    $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     /** Skills needed to fly the ship (direct requirements only). */
     public function getFlyRequirements(int $typeId): array
     {

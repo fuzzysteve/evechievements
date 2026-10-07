@@ -1,5 +1,5 @@
 {% extends "layout/base.twig" %}
-{% block title %}{{ ship.name }} — Mastery{% endblock %}
+{% block title %}{{ ship.name }}{% endblock %}
 
 {# Link preview (Discord, Slack, …). Generic SDE data only, nothing about any pilot #}
 {% block head %}
@@ -30,7 +30,7 @@
     <header class="ship-header">
         <img class="ship-header__render" src="https://images.evetech.net/types/{{ ship.type_id }}/render?size=128" alt="{{ ship.name }}">
         <div class="ship-header__identity">
-            <span class="shiptree__eyebrow">◇ SHIP MASTERY{% if ship.faction_name %} · {{ ship.faction_name|upper }}{% endif %}</span>
+            <span class="shiptree__eyebrow">◇ SHIP{% if ship.faction_name %} · {{ ship.faction_name|upper }}{% endif %}</span>
             <h1 class="shiptree__pilot-name">{{ ship.name }}</h1>
             <p class="ship-header__group">{{ ship.group_name }}{% if ship.tech_level > 1 %} · Tech {{ roman[ship.tech_level] }}{% endif %}</p>
         </div>
@@ -49,20 +49,26 @@
         </div>
     </section>
 
-    {# All levels are rendered; app.js switches tabs in place and keeps ?level= in the URL.
+    {# Every tab is rendered; app.js switches them in place and keeps ?level= / ?tab= in the URL.
        Without JS the tabs are plain links. #}
+    {% set tabs = [] %}
+    {% for l in 1..5 %}{% set tabs = tabs|merge([{id: 'level-' ~ l, query: 'level=' ~ l, label: 'MASTERY ' ~ roman[l]}]) %}{% endfor %}
+    {% set tabs = tabs|merge([
+        {id: 'attributes', query: 'tab=attributes', label: 'ATTRIBUTES'},
+        {id: 'bonuses',    query: 'tab=bonuses',    label: 'BONUSES'},
+    ]) %}
     <nav class="level-tabs" role="tablist">
-        {% for l in 1..5 %}
-        <a href="?level={{ l }}" id="level-tab-{{ l }}" role="tab" data-level="{{ l }}"
-           aria-controls="level-{{ l }}" aria-selected="{{ l == level ? 'true' : 'false' }}"
-           class="level-tab{{ l == level ? ' level-tab--active' }}">
-            MASTERY {{ roman[l] }}
+        {% for t in tabs %}
+        <a href="?{{ t.query }}" id="tab-{{ t.id }}" role="tab" data-panel="panel-{{ t.id }}" data-query="{{ t.query }}"
+           aria-controls="panel-{{ t.id }}" aria-selected="{{ t.id == active ? 'true' : 'false' }}"
+           class="level-tab{{ t.id == active ? ' level-tab--active' }}">
+            {{ t.label }}
         </a>
         {% endfor %}
     </nav>
 
     {% for l in 1..5 %}
-    <section class="cert-grid" id="level-{{ l }}" role="tabpanel" aria-labelledby="level-tab-{{ l }}"{{ l != level ? ' hidden' }}>
+    <section class="cert-grid" id="panel-level-{{ l }}" role="tabpanel" aria-labelledby="tab-level-{{ l }}"{{ active != 'level-' ~ l ? ' hidden' }}>
         {% for cert in requirements[l] %}
         <article class="cert-card">
             <h3 class="cert-card__name" title="{{ cert.description }}">
@@ -80,6 +86,42 @@
         {% endfor %}
     </section>
     {% endfor %}
+
+    <section class="cert-grid" id="panel-attributes" role="tabpanel" aria-labelledby="tab-attributes"{{ active != 'attributes' ? ' hidden' }}>
+        {% for group in attributes %}
+        <article class="cert-card">
+            <h3 class="cert-card__name">{{ group.category }}</h3>
+            <dl class="attr-list">
+                {% for attr in group.attributes %}
+                <div class="attr-list__row">
+                    <dt>{{ attr.name }}</dt>
+                    <dd>{{ attr.value }}</dd>
+                </div>
+                {% endfor %}
+            </dl>
+        </article>
+        {% else %}
+        <p class="empty-state">No attributes listed for this ship.</p>
+        {% endfor %}
+    </section>
+
+    <section class="cert-grid cert-grid--wide" id="panel-bonuses" role="tabpanel" aria-labelledby="tab-bonuses"{{ active != 'bonuses' ? ' hidden' }}>
+        {% for group in bonuses %}
+        <article class="cert-card">
+            <h3 class="cert-card__name">{{ group.title }}</h3>
+            <ul class="bonus-list">
+                {% for bonus in group.bonuses %}
+                <li class="bonus-list__item">
+                    <span class="bonus-list__amount">{{ bonus.amount ?? '◇' }}</span>
+                    <span>{{ bonus.text }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% else %}
+        <p class="empty-state">This ship has no bonuses listed.</p>
+        {% endfor %}
+    </section>
 
 </div>
 {% endblock %}

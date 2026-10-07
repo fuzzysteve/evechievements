@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace App;
 
-use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, ShipController};
+use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, SearchController, ShipController};
 use App\Model\PilotRepository;
-use App\Service\{AuthService, EsiService, DataFetchService, ShipTreeService, TrophyService};
+use App\Service\{AuthService, EsiService, DataFetchService, ShipInfoService, ShipTreeService, TrophyService};
 use App\Config\TwigFactory;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -44,6 +44,11 @@ final class Router
                 => $this->authCtrl()->fetchSection(substr($path, 12)),
 
 
+            $method === 'GET'  && $path === '/search'
+                => $this->searchCtrl()->page(),
+            $method === 'GET'  && $path === '/search.json'
+                => $this->searchCtrl()->suggest(),
+
             $method === 'GET'  && $path === '/browse'
                 => (new BrowseController($this->twig, $this->pilots))->index(),
 
@@ -51,7 +56,7 @@ final class Router
                 => $this->profileCtrl()->dashboard(),
 
             $method === 'GET'  && preg_match('#^/ship/(\d+)$#', $path, $m) === 1
-                => (new ShipController($this->twig, new ShipTreeService()))->show((int) $m[1]),
+                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService()))->show((int) $m[1]),
 
             // Old pilot-specific mastery pages now live at the generic /ship/{typeID}
             $method === 'GET'  && preg_match('#^/pilot/\d+/ships/(\d+)$#', $path, $m) === 1
@@ -101,6 +106,11 @@ final class Router
     private function redirect(string $url, int $code): void
     {
         header('Location: ' . $url, true, $code);
+    }
+
+    private function searchCtrl(): SearchController
+    {
+        return new SearchController($this->twig, $this->pilots, new ShipTreeService());
     }
 
     private function profileCtrl(): ProfileController

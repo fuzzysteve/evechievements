@@ -31,25 +31,119 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-    // Mastery level tabs: switch panels in place, keep ?level= so the URL still links to the tab
-    const levelTabs = document.querySelectorAll('.level-tab[data-level]');
-    const showLevel = (level) => {
-        levelTabs.forEach(tab => {
-            const active = tab.dataset.level === level;
-            tab.classList.toggle('level-tab--active', active);
-            tab.setAttribute('aria-selected', active ? 'true' : 'false');
-            document.getElementById('level-' + tab.dataset.level).hidden = !active;
-        });
-    };
-    levelTabs.forEach(tab => {
+    // Ship page tabs (mastery levels, attributes, bonuses): switch panels in place and keep
+    // ?level= / ?tab= in the URL so it still links to the open tab
+    const pageTabs = document.querySelectorAll('.level-tab[data-panel]');
+    pageTabs.forEach(tab => {
         tab.addEventListener('click', e => {
             e.preventDefault();
-            showLevel(tab.dataset.level);
+            pageTabs.forEach(other => {
+                const active = other === tab;
+                other.classList.toggle('level-tab--active', active);
+                other.setAttribute('aria-selected', active ? 'true' : 'false');
+                document.getElementById(other.dataset.panel).hidden = !active;
+            });
             const url = new URL(window.location);
-            url.searchParams.set('level', tab.dataset.level);
+            url.searchParams.delete('level');
+            url.searchParams.delete('tab');
+            const [key, value] = tab.dataset.query.split('=');
+            url.searchParams.set(key, value);
             history.replaceState(null, '', url);
         });
     });
+
+    // Nav search suggestions. Built with textContent: pilot names are user data.
+    const searchInput = document.getElementById('site-search');
+    const suggestBox  = document.getElementById('site-search-results');
+    if (searchInput && suggestBox) {
+        let timer = null;
+        let latest = 0;
+
+        const close = () => {
+            suggestBox.hidden = true;
+            searchInput.setAttribute('aria-expanded', 'false');
+        };
+        const links = () => [...suggestBox.querySelectorAll('a')];
+
+        const section = (title, items) => {
+            const wrap = document.createElement('div');
+            const head = document.createElement('p');
+            head.className = 'search-suggest__head';
+            head.textContent = title;
+            wrap.appendChild(head);
+            items.forEach(item => {
+                const a = document.createElement('a');
+                a.href = item.url;
+                a.className = 'search-suggest__item';
+                const img = document.createElement('img');
+                img.src = item.image;
+                img.alt = '';
+                img.width = img.height = 32;
+                const text = document.createElement('span');
+                const name = document.createElement('span');
+                name.className = 'search-suggest__name';
+                name.textContent = item.name;
+                const detail = document.createElement('span');
+                detail.className = 'search-suggest__detail';
+                detail.textContent = item.detail;
+                text.append(name, detail);
+                a.append(img, text);
+                wrap.appendChild(a);
+            });
+            return wrap;
+        };
+
+        const render = (data, q) => {
+            suggestBox.replaceChildren();
+            if (data.pilots.length) suggestBox.appendChild(section('PILOTS', data.pilots));
+            if (data.ships.length)  suggestBox.appendChild(section('SHIPS', data.ships));
+            if (!data.pilots.length && !data.ships.length) {
+                const none = document.createElement('p');
+                none.className = 'search-suggest__empty';
+                none.textContent = 'No pilots or ships match.';
+                suggestBox.appendChild(none);
+            }
+            const all = document.createElement('a');
+            all.href = '/search?q=' + encodeURIComponent(q);
+            all.className = 'search-suggest__all';
+            all.textContent = 'See all results →';
+            suggestBox.appendChild(all);
+            suggestBox.hidden = false;
+            searchInput.setAttribute('aria-expanded', 'true');
+        };
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(timer);
+            const q = searchInput.value.trim();
+            if (q.length < 2) { close(); return; }
+            timer = setTimeout(() => {
+                const id = ++latest;
+                fetch('/search.json?q=' + encodeURIComponent(q))
+                    .then(r => r.json())
+                    .then(data => { if (id === latest) render(data, q); })
+                    .catch(close);
+            }, 200);
+        });
+
+        // Arrow keys move between suggestions, Escape closes
+        searchInput.closest('form').addEventListener('keydown', e => {
+            const items = links();
+            const index = items.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown' && items.length) {
+                e.preventDefault();
+                items[Math.min(index + 1, items.length - 1)].focus();
+            } else if (e.key === 'ArrowUp' && index >= 0) {
+                e.preventDefault();
+                (index === 0 ? searchInput : items[index - 1]).focus();
+            } else if (e.key === 'Escape') {
+                close();
+                searchInput.focus();
+            }
+        });
+        document.addEventListener('click', e => {
+            if (!searchInput.closest('form').contains(e.target)) close();
+        });
+    }
 
     document.querySelectorAll('.section-toggle').forEach(btn => {
         btn.addEventListener('click', function() {

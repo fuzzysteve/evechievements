@@ -1,0 +1,55 @@
+{% extends "layout/base.twig" %}
+{% block title %}{{ query ? 'Search: ' ~ query : 'Search' }}{% endblock %}
+{% block content %}
+<div class="browse">
+    <header class="browse__header">
+        <p class="browse__eyebrow">◇ SEARCH</p>
+        <h1 class="browse__title">{{ query ? 'Results for “' ~ query ~ '”' : 'Search pilots and ships' }}</h1>
+    </header>
+
+    {% if not ready %}
+    <p class="empty-state">Type at least two characters to search public pilots and ships.</p>
+    {% else %}
+
+    <section class="search-section">
+        <h2 class="section-title">◇ PILOTS · {{ pilots|length }}</h2>
+        <div class="pilot-grid">
+            {% for pilot in pilots %}
+            <a href="/pilot/{{ pilot.id }}" class="pilot-thumb">
+                <div class="pilot-thumb__portrait">
+                    <img src="https://images.evetech.net/characters/{{ pilot.id }}/portrait?size=64" alt="" loading="lazy">
+                </div>
+                <div class="pilot-thumb__info">
+                    <p class="pilot-thumb__name">{{ pilot.name }}</p>
+                    {% if pilot.corporation_name %}<p class="pilot-thumb__corp">{{ pilot.corporation_name }}</p>{% endif %}
+                    {% if pilot.alliance_name %}<p class="pilot-thumb__corp">{{ pilot.alliance_name }}</p>{% endif %}
+                </div>
+            </a>
+            {% else %}
+            <p class="empty-state">No public pilots match.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="search-section">
+        <h2 class="section-title">◇ SHIPS · {{ ships|length }}</h2>
+        <div class="pilot-grid">
+            {% for ship in ships %}
+            <a href="/ship/{{ ship.type_id }}" class="pilot-thumb">
+                <div class="pilot-thumb__portrait">
+                    <img src="https://images.evetech.net/types/{{ ship.type_id }}/icon?size=64" alt="" loading="lazy">
+                </div>
+                <div class="pilot-thumb__info">
+                    <p class="pilot-thumb__name">{{ ship.name }}</p>
+                    <p class="pilot-thumb__corp">{{ ship.group_name }}{{ ship.faction_name ? ' · ' ~ ship.faction_name }}</p>
+                </div>
+            </a>
+            {% else %}
+            <p class="empty-state">No ships match.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% endif %}
+</div>
+{% endblock %}

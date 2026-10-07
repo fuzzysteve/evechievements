@@ -25,6 +25,15 @@
         <li><a href="/browse" class="topnav__link">BROWSE</a></li>
         {% if app.session.pilot_id is defined %}<li><a href="/dashboard" class="topnav__link">DASHBOARD</a></li>{% endif %}
     </ul>
+    {# Suggestions come from /search.json (app.js); without JS, Enter goes to the results page #}
+    <form class="topnav__search" action="/search" method="get" role="search">
+        <label for="site-search" class="visually-hidden">Search pilots and ships</label>
+        <input type="search" id="site-search" name="q" class="topnav__search-input"
+               placeholder="Search pilots or ships…" autocomplete="off" maxlength="100"
+               value="{{ query is defined ? query }}"
+               aria-controls="site-search-results" aria-expanded="false">
+        <div id="site-search-results" class="search-suggest" hidden></div>
+    </form>
     <div class="topnav__status">
         {% if session.pilot_id is defined and session.pilot_id %}
             <a href="/auth/logout" class="btn btn--outline btn--sm">LOGOUT</a>
