@@ -38,6 +38,17 @@ final class TwigFactory
             };
         }));
 
+        // Minutes as the two largest units: 42m, 3h 15m, 4d 7h (matches formatMinutes in app.js)
+        $twig->addFilter(new TwigFilter('duration', function (int|float $minutes): string {
+            $minutes = (int) ceil($minutes);
+            $d = intdiv($minutes, 1440); $h = intdiv($minutes % 1440, 60); $m = $minutes % 60;
+            return match (true) {
+                $d > 0  => $d . 'd' . ($h ? " {$h}h" : ''),
+                $h > 0  => $h . 'h' . ($m ? " {$m}m" : ''),
+                default => $m . 'm',
+            };
+        }));
+
         // Hidden CSRF token input for POST forms (checked by the Router)
         $twig->addFunction(new TwigFunction('csrf_field', [\App\Service\Csrf::class, 'field'], ['is_safe' => ['html']]));
 

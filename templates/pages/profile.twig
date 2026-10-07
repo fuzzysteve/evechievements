@@ -64,7 +64,7 @@
             <tbody>
                 {% for skill in selections.skills %}
                 <tr>
-                    <td>{{ skill.skill_name }}</td>
+                    <td><span class="skill-name" data-skill-id="{{ skill.skill_id }}" tabindex="0">{{ skill.skill_name }}</span></td>
                     <td>
                         {% for i in 1..5 %}
                         <span class="skill-pip skill-pip--{{ i <= skill.active_level ? 'active' : (i <= skill.trained_level ? 'trained' : 'empty') }}"></span>

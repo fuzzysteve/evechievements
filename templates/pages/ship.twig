@@ -16,10 +16,10 @@
 
 {# One required skill. `have` is the logged-in viewer's own level (from their session) or null:
    only ever shown to that viewer, never stored or shown to anyone else. #}
-{% macro skill_row(skill, roman, have = null) %}
+{% macro skill_row(skill, roman, have = null, note = null) %}
     {% set met = have is not null and have >= skill.level %}
     <li class="req-skill{{ have is not null ? (met ? ' req-skill--met' : ' req-skill--missing') }}">
-        <span class="req-skill__name">{{ skill.name }}{% if have is not null and not met %} <span class="req-skill__gap">{{ roman[have] ?: '0' }} → {{ roman[skill.level] }}</span>{% endif %}</span>
+        <span class="req-skill__name">{% if skill.skill_id is defined %}<span class="skill-name" data-skill-id="{{ skill.skill_id }}" tabindex="0">{{ skill.name }}</span>{% else %}{{ skill.name }}{% endif %}{% if have is not null and not met %} <span class="req-skill__gap">{{ roman[have] ?: '0' }} → {{ roman[skill.level] }}</span>{% endif %}{% if note %} <span class="req-skill__note">{{ note }}</span>{% endif %}</span>
         <span class="req-skill__level" title="Level {{ skill.level }} required{{ have is not null ? ', you have ' ~ have }}">
             {% for i in 1..5 %}
                 {% if have is null %}<span class="skill-pip skill-pip--{{ i <= skill.level ? 'filled' : 'empty' }}"></span>
@@ -44,13 +44,29 @@
     <section class="data-section ship-section">
         <div class="data-section__header">
             <h2 class="section-title">◇ REQUIRED TO FLY</h2>
+            {% if mine.loaded ?? false %}
+            {# The viewer's own state, from their session: not stored, not shown to anyone else #}
+            <span class="fly-status{{ mine.can_fly ? ' fly-status--ok' }}">
+                {{ mine.can_fly ? '✓ You can fly this ship' : '≈ ' ~ mine.fly_minutes|duration ~ ' of training to fly it' }}
+            </span>
+            {% endif %}
         </div>
         <div class="data-section__body">
+            {% if (mine.loaded ?? false) and not mine.can_fly %}
+            <ul class="req-skills viewer-progress__list">
+                {% for gap in mine.fly_missing %}
+                    {{ _self.skill_row({skill_id: gap.skill_id, name: gap.name, level: gap.need}, roman, gap.have,
+                        (gap.prerequisite ? 'prerequisite · ' : '') ~ '≈ ' ~ gap.minutes|duration) }}
+                {% endfor %}
+            </ul>
+            <p class="viewer-progress__note">Only you can see this. Times count skill points you've already earned, at 20 in both attributes (Omega, no implants).</p>
+            {% else %}
             <ul class="req-skills">
                 {% for skill in fly_skills %}
                     {{ _self.skill_row(skill, roman, mine.loaded ?? false ? (mine.skills[skill.skill_id] ?? 0) : null) }}
                 {% endfor %}
             </ul>
+            {% endif %}
         </div>
     </section>
 
@@ -85,15 +101,22 @@
             <h3 class="cert-card__name">✓ You have Mastery {{ roman[l] }}</h3>
             {% else %}
             <h3 class="cert-card__name">
-                You're missing {{ mine.missing[l]|length }} skill{{ mine.missing[l]|length == 1 ? '' : 's' }} for Mastery {{ roman[l] }}
+                <span>
+                    You're missing {{ mine.missing[l]|length }} skill{{ mine.missing[l]|length == 1 ? '' : 's' }} for Mastery {{ roman[l] }}
+                    <span class="viewer-progress__time">≈ {{ mine.minutes[l]|duration }} of training</span>
+                </span>
                 <span class="cert-card__count">only you can see this</span>
             </h3>
             <ul class="req-skills viewer-progress__list">
                 {% for gap in mine.missing[l] %}
-                    {{ _self.skill_row({name: gap.name, level: gap.need}, roman, gap.have) }}
+                    {{ _self.skill_row({skill_id: gap.skill_id, name: gap.name, level: gap.need}, roman, gap.have,
+                        (gap.prerequisite ? 'prerequisite · ' : '') ~ '≈ ' ~ gap.minutes|duration) }}
                 {% endfor %}
             </ul>
-            {% if not mine.can_fly %}<p class="viewer-progress__note">Includes the skills needed to fly the ship.</p>{% endif %}
+            <p class="viewer-progress__note">
+                {% if not mine.can_fly %}Includes the skills needed to fly the ship (see Required to fly). {% endif %}
+                Times count skill points you've already earned, at 20 in both attributes (Omega, no implants); hover a skill for its full details.
+            </p>
             {% endif %}
         </article>
         {% endif %}

@@ -2,9 +2,9 @@
 declare(strict_types=1);
 namespace App;
 
-use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, SearchController, ShipController};
+use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, SearchController, ShipController, SkillController};
 use App\Model\PilotRepository;
-use App\Service\{AuthService, Csrf, EsiService, DataFetchService, ShipInfoService, ShipTreeService};
+use App\Service\{AuthService, Csrf, EsiService, DataFetchService, ShipInfoService, ShipTreeService, SkillService};
 use App\Config\TwigFactory;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -60,11 +60,14 @@ final class Router
             $method === 'GET'  && $path === '/dashboard'
                 => $this->profileCtrl()->dashboard(),
 
+            $method === 'GET'  && preg_match('#^/skill/(\d+)\.json$#', $path, $m) === 1
+                => (new SkillController(new SkillService()))->json((int) $m[1]),
+
             $method === 'GET'  && $path === '/ships'
-                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService()))->trees(),
+                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService(), new SkillService()))->trees(),
 
             $method === 'GET'  && preg_match('#^/ship/(\d+)$#', $path, $m) === 1
-                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService()))->show((int) $m[1]),
+                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService(), new SkillService()))->show((int) $m[1]),
 
             // Old pilot-specific mastery pages now live at the generic /ship/{typeID}
             $method === 'GET'  && preg_match('#^/pilot/\d+/ships/(\d+)$#', $path, $m) === 1

@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Service\ShipInfoService;
 use App\Service\ShipTreeLayout;
 use App\Service\ShipTreeService;
+use App\Service\SkillService;
 use Twig\Environment;
 
 /**
@@ -16,7 +17,8 @@ final class ShipController
     public function __construct(
         private readonly Environment     $twig,
         private readonly ShipTreeService $shipTree,
-        private readonly ShipInfoService $shipInfo
+        private readonly ShipInfoService $shipInfo,
+        private readonly SkillService    $skills
     ) {}
 
     /** Ship page: /ship/{typeID}, tabs ?level={1-5} (mastery), ?tab=attributes, ?tab=bonuses */
@@ -86,9 +88,16 @@ final class ShipController
     /**
      * The logged-in viewer's progress on this ship, from their own session only.
      *
+     * For each mastery level they don't have: the skills they're short of (mastery certificates plus
+     * the skills to fly the ship), any prerequisites of skills they haven't started, and an approximate
+     * training time. Skill points already earned towards a level count, so part-trained skills and
+     * partly-met masteries cost less. Everything is looked up in a few batched queries.
+     *
      * @return array|null  null when nobody is logged in; ['loaded' => false] when they haven't loaded
      *                     skills; otherwise ['loaded', 'skills' => [skillID => level], 'can_fly',
-     *                     'mastery' => 0-5, 'missing' => [1..5 => [['skill_id', 'name', 'have', 'need'], ...]]]
+     *                     'mastery' => 0-5, 'missing' => [1..5 => [['skill_id', 'name', 'have', 'need',
+     *                     'minutes', 'prerequisite'], ...]], 'minutes' => [1..5 => int],
+     *                     'fly_missing' => [same shape as a missing level], 'fly_minutes' => int]
      */
     private function viewerProgress(array $requirements, array $flySkills): ?array
     {
@@ -100,28 +109,71 @@ final class ShipController
             return ['loaded' => false];
         }
         $skills = array_column($fetched, 'active_skill_level', 'skill_id');
+        $points = array_column($fetched, 'skillpoints_in_skill', 'skill_id');
 
-        // Skills short of what's needed, highest requirement per skill. Flying the ship is part
-        // of every mastery level, so its skills count towards each level too.
-        $shortfall = function (array $required) use ($skills): array {
-            $need = [];
+        // Every skill any level needs, then (batched) their prerequisite chains, names and ranks
+        $needed = array_column($flySkills, 'skill_id');
+        foreach ($requirements as $certs) {
+            foreach ($certs as $cert) {
+                array_push($needed, ...array_column($cert['skills'], 'skill_id'));
+            }
+        }
+        $graph   = $this->skills->prerequisiteGraph($needed);
+        $details = $this->skills->details(array_keys($graph));
+
+        // Required levels for a set of skills, plus the prerequisites of any not yet started
+        // (a started skill's prerequisites are already met), all the way down
+        $withPrerequisites = function (array $required) use ($graph, $skills): array {
+            $need  = [];
             foreach ($required as $skill) {
-                $id = $skill['skill_id'];
-                if (($skills[$id] ?? 0) < $skill['level'] && $skill['level'] > ($need[$id]['need'] ?? 0)) {
-                    $need[$id] = ['skill_id' => $id, 'name' => $skill['name'],
-                                  'have' => $skills[$id] ?? 0, 'need' => $skill['level']];
+                $need[$skill['skill_id']] = max($need[$skill['skill_id']] ?? 0, $skill['level']);
+            }
+            $direct = $need;
+            $queue  = array_keys($need);
+            while ($queue !== []) {
+                $id = array_pop($queue);
+                if (($skills[$id] ?? 0) > 0) continue;
+                foreach ($graph[$id] ?? [] as $pre => $level) {
+                    if ($level > ($need[$pre] ?? 0)) {
+                        $need[$pre] = $level;
+                        $queue[]    = $pre;
+                    }
                 }
             }
-            uasort($need, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
-            return array_values($need);
+            return [$need, $direct];
+        };
+
+        // Skills short of their required level, with the time to close each gap
+        $shortfall = function (array $required) use ($withPrerequisites, $skills, $points, $details): array {
+            [$need, $direct] = $withPrerequisites($required);
+            $gaps = [];
+            foreach ($need as $id => $level) {
+                $have = $skills[$id] ?? 0;
+                if ($have >= $level) continue;
+                $sp      = SkillService::spPerLevel($details[$id]['rank'] ?? 1);
+                $earned  = max((float) ($points[$id] ?? 0), $have > 0 ? $sp[$have] : 0);
+                $gaps[]  = [
+                    'skill_id'     => $id,
+                    'name'         => $details[$id]['name'] ?? "Skill #{$id}",
+                    'have'         => $have,
+                    'need'         => $level,
+                    'minutes'      => SkillService::minutesFor($sp[$level] - $earned),
+                    'prerequisite' => !isset($direct[$id]),
+                ];
+            }
+            // The mastery's own skills first, prerequisites after; each group by name
+            usort($gaps, fn($a, $b) => $a['prerequisite'] <=> $b['prerequisite'] ?: strnatcasecmp($a['name'], $b['name']));
+            return $gaps;
         };
 
         $flyMissing = $shortfall($flySkills);
-        $missing    = [];
-        $mastery    = 0;
+        $missing = [];
+        $minutes = [];
+        $mastery = 0;
         foreach ($requirements as $level => $certs) {
             $certSkills      = array_merge([], ...array_column($certs, 'skills'));
             $missing[$level] = $shortfall(array_merge($certSkills, $flySkills));
+            $minutes[$level] = array_sum(array_column($missing[$level], 'minutes'));
             if ($missing[$level] === [] && $mastery === $level - 1) {
                 $mastery = $level;
             }
@@ -130,9 +182,12 @@ final class ShipController
         return [
             'loaded'  => true,
             'skills'  => $skills,
-            'can_fly' => $flyMissing === [],
+            'can_fly'     => $flyMissing === [],
+            'fly_missing' => $flyMissing,
+            'fly_minutes' => array_sum(array_column($flyMissing, 'minutes')),
             'mastery' => $mastery,
             'missing' => $missing,
+            'minutes' => $minutes,
         ];
     }
 }

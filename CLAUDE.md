@@ -82,4 +82,11 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
 - One stylesheet, `htdocs/assets/css/app.css`. CSS variables are on `:root` (`--color-*`, `--font-*`).
   The site is dark-only and uses BEM-style class names (`block__element--modifier`). No Bootstrap.
 - Mastery/skill levels use `.skill-pip--filled|empty` (5 pips). Reuse it.
+- Skill names: `<span class="skill-name" data-skill-id="…" tabindex="0">` gets the hover/focus detail popup
+  (`app.js`, data from `/skill/{id}.json` via `SkillService`; SP per level is computed from the rank;
+  training times assume 20 in both attributes = 30 SP/min, Omega, no implants). The JSON is cached a day,
+  so bump the `?v=` in `app.js` when its shape changes.
+- Mastery training times (`ShipController::viewerProgress`, logged-in viewer only) include prerequisites of
+  unstarted skills and subtract skill points already earned. Skill data is fetched in batches
+  (`SkillService::prerequisiteGraph()` one query per depth, `details()` one query): never query per skill.
 - `htdocs/assets/js/app.js` is plain JS with no build step.

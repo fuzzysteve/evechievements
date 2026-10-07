@@ -168,6 +168,131 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Skill detail popup: hover or focus any [data-skill-id]. Details come from /skill/{id}.json
+    // (static SDE data, cached per page). Built with textContent only.
+    const skillCache = new Map();
+    const romanNum   = ['', 'I', 'II', 'III', 'IV', 'V'];
+    let skillPop = null, skillCurrent = null, skillHideTimer = null;
+
+    const popEl = () => {
+        if (!skillPop) {
+            skillPop = document.createElement('div');
+            skillPop.id = 'skill-pop';
+            skillPop.className = 'skill-pop';
+            skillPop.setAttribute('role', 'tooltip');
+            skillPop.hidden = true;
+            skillPop.addEventListener('mouseenter', () => clearTimeout(skillHideTimer));
+            skillPop.addEventListener('mouseleave', () => hideSoon());
+            document.body.appendChild(skillPop);
+        }
+        return skillPop;
+    };
+    const el = (tag, cls, text) => {
+        const node = document.createElement(tag);
+        if (cls) node.className = cls;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    };
+    // Two largest units: 41m, 3h 56m, 2d 12h
+    const formatMinutes = (min) => {
+        const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = min % 60;
+        if (d) return d + 'd' + (h ? ' ' + h + 'h' : '');
+        if (h) return h + 'h' + (m ? ' ' + m + 'm' : '');
+        return m + 'm';
+    };
+    const renderSkill = (s) => {
+        const pop = popEl();
+        pop.replaceChildren();
+        pop.append(el('p', 'skill-pop__name', s.name));
+        const meta = [s.group, 'Rank ' + s.rank, s.primary && s.secondary ? s.primary + ' / ' + s.secondary : null].filter(Boolean);
+        pop.append(el('p', 'skill-pop__meta', meta.join(' · ')));
+        if (s.description) pop.append(el('p', 'skill-pop__desc', s.description));
+
+        const sp = el('table', 'skill-pop__sp');
+        const head = el('tr'), points = el('tr'), time = el('tr', 'skill-pop__time');
+        head.append(el('th'));
+        points.append(el('th', 'skill-pop__rowhead', 'SP'));
+        time.append(el('th', 'skill-pop__rowhead', 'Time'));
+        let total = 0;
+        for (let l = 1; l <= 5; l++) {
+            head.append(el('th', null, romanNum[l]));
+            points.append(el('td', null, Number(s.sp[l]).toLocaleString('en')));
+            time.append(el('td', null, formatMinutes(s.train_minutes[l])));
+            total += s.train_minutes[l];
+        }
+        sp.append(head, points, time);
+        pop.append(el('p', 'skill-pop__label', 'SKILL POINTS AND TRAINING TIME PER LEVEL'), sp);
+        pop.append(el('p', 'skill-pop__note', '≈ ' + formatMinutes(total) + ' from untrained to V · with ' + s.train_attribute
+            + ' in both attributes, Omega, no implants (Alpha trains at half speed)'));
+
+        pop.append(el('p', 'skill-pop__label', 'REQUIRES'));
+        if (s.prerequisites.length) {
+            const list = el('ul', 'skill-pop__reqs');
+            s.prerequisites.forEach(p => list.append(el('li', null, p.name + ' ' + romanNum[p.level])));
+            pop.append(list);
+        } else {
+            pop.append(el('p', 'skill-pop__desc', 'No prerequisites'));
+        }
+    };
+    const placePop = (target) => {
+        const pop = popEl();
+        const r   = target.getBoundingClientRect();
+        const gap = 6;
+        let top = r.bottom + gap;
+        if (top + pop.offsetHeight > window.innerHeight - 8) top = Math.max(8, r.top - pop.offsetHeight - gap);
+        const left = Math.min(Math.max(8, r.left), window.innerWidth - pop.offsetWidth - 8);
+        pop.style.top  = top + 'px';
+        pop.style.left = left + 'px';
+    };
+    const hideSkill = () => {
+        if (skillPop) skillPop.hidden = true;
+        if (skillCurrent) skillCurrent.removeAttribute('aria-describedby');
+        skillCurrent = null;
+    };
+    const hideSoon = () => { clearTimeout(skillHideTimer); skillHideTimer = setTimeout(hideSkill, 150); };
+    const showSkill = (target) => {
+        clearTimeout(skillHideTimer);
+        if (target === skillCurrent) return;
+        if (skillCurrent) skillCurrent.removeAttribute('aria-describedby');
+        skillCurrent = target;
+        target.setAttribute('aria-describedby', 'skill-pop');
+        const id   = target.dataset.skillId;
+        const draw = (data) => {
+            if (skillCurrent !== target) return;          // moved on while loading
+            renderSkill(data);
+            popEl().hidden = false;
+            placePop(target);
+        };
+        if (skillCache.has(id)) { draw(skillCache.get(id)); return; }
+        const pop = popEl();
+        pop.replaceChildren(el('p', 'skill-pop__meta', 'Loading…'));
+        pop.hidden = false;
+        placePop(target);
+        // ?v= changes whenever the JSON's shape does: responses are browser-cached for a day
+        fetch('/skill/' + encodeURIComponent(id) + '.json?v=2')
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(data => { skillCache.set(id, data); draw(data); })
+            .catch(() => { if (skillCurrent === target) hideSkill(); });
+    };
+
+    document.addEventListener('mouseover', e => {
+        const target = e.target.closest('[data-skill-id]');
+        if (target) showSkill(target);
+    });
+    document.addEventListener('mouseout', e => {
+        const target = e.target.closest('[data-skill-id]');
+        if (target && !target.contains(e.relatedTarget)) hideSoon();
+    });
+    document.addEventListener('focusin', e => {
+        const target = e.target.closest('[data-skill-id]');
+        if (target) showSkill(target);
+    });
+    document.addEventListener('focusout', e => {
+        if (e.target.closest('[data-skill-id]')) hideSoon();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideSkill(); });
+    window.addEventListener('scroll', () => { if (skillCurrent && skillPop && !skillPop.hidden) placePop(skillCurrent); }, { passive: true });
+
     document.querySelectorAll('.section-toggle').forEach(btn => {
         btn.addEventListener('click', function() {
             const target = document.getElementById(this.dataset.target);
