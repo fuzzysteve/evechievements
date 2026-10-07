@@ -284,6 +284,15 @@ final class DataFetchService
         $prices     = $this->esi->getMarketPrices();
         $totalValue = 0.0;
 
+        // One price per item, used for both the headline total and the per-type table: ESI's
+        // average_price (what the in-game asset window estimates with), falling back to
+        // adjusted_price when a type has no average. Blueprint copies are valued at 0: ESI's
+        // prices are for the original, which would wildly overvalue a copy.
+        $unitPrice = fn(int $typeId): float =>
+            (float) ($prices[$typeId]['average_price'] ?? $prices[$typeId]['adjusted_price'] ?? 0);
+        $assetValue = fn(array $asset): float =>
+            !empty($asset['is_blueprint_copy']) ? 0.0 : $unitPrice($asset['type_id']) * ($asset['quantity'] ?? 1);
+
         // ── Group assets by location, aggregate quantities per type ───────
         $byLocation = []; // [locationId => [typeName => [type_id, quantity, value]]]
 
@@ -293,9 +302,7 @@ final class DataFetchService
             $quantity   = $asset['quantity'] ?? 1;
             $typeName   = $typeNames[$typeId] ?? "Unknown #{$typeId}";
 
-            // Accumulate value
-            $adjustedPrice = $prices[$typeId]['average_price'] ?? 0;
-            $totalValue   += $adjustedPrice * $quantity;
+            $totalValue += $assetValue($asset);
 
             // Group by location
             $locKey = $locationId;
@@ -337,18 +344,20 @@ final class DataFetchService
 	foreach ($assets as $asset) {
             $typeId   = $asset['type_id'];
             $quantity = $asset['quantity'] ?? 1;
-            $adjustedPrice = $prices[$typeId]['adjusted_price'] ?? 0;
+            $copies   = !empty($asset['is_blueprint_copy']) ? $quantity : 0;
 
             if (isset($allTypes[$typeId])) {
                 $allTypes[$typeId]['quantity']    += $quantity;
-                $allTypes[$typeId]['total_value'] += $adjustedPrice * $quantity;
+                $allTypes[$typeId]['copies']      += $copies;
+                $allTypes[$typeId]['total_value'] += $assetValue($asset);
             } else {
                 $allTypes[$typeId] = [
                     'type_id'     => $typeId,
                     'type_name'   => $typeNames[$typeId] ?? "Unknown #{$typeId}",
                     'quantity'    => $quantity,
-                    'unit_price'  => $adjustedPrice,
-                    'total_value' => $adjustedPrice * $quantity,
+                    'copies'      => $copies,      // blueprint copies, valued at 0
+                    'unit_price'  => $unitPrice($typeId),
+                    'total_value' => $assetValue($asset),
 		];
 	    }
         }

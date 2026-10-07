@@ -190,7 +190,7 @@
                                            value="1"
                                            {% if selections.asset_ids is defined and selections.asset_ids[item.type_id] is defined %}checked{% endif %}>
                                 </td>
-                                <td>{{ item.type_name }}</td>
+                                <td>{{ item.type_name }}{% if item.copies ?? 0 %} <span class="asset-row__note">· {{ item.copies|number_format }} {{ item.copies == 1 ? 'copy' : 'copies' }}, not valued</span>{% endif %}</td>
                                 <td>{{ item.quantity|number_format }}</td>
                                 <td>{{ item.unit_price|sig_figs }} ISK</td>
                                 <td>{{ item.total_value|sig_figs }} ISK</td>

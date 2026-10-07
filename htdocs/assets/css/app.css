@@ -1173,3 +1173,4 @@ img { display: block; max-width: 100%; }
 .sort-btn::after { content: " ↕"; color: var(--color-text-dim); }
 th[aria-sort="ascending"]  .sort-btn::after { content: " ▲"; color: var(--color-amber); }
 th[aria-sort="descending"] .sort-btn::after { content: " ▼"; color: var(--color-amber); }
+.asset-row__note { color: var(--color-text-muted); }
