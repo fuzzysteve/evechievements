@@ -53,6 +53,9 @@ final class Router
             $method === 'GET'  && $path === '/dashboard'
                 => $this->profileCtrl()->dashboard(),
 
+            $method === 'GET'  && $path === '/ships'
+                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService()))->trees(),
+
             $method === 'GET'  && preg_match('#^/ship/(\d+)$#', $path, $m) === 1
                 => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService()))->show((int) $m[1]),
 

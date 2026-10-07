@@ -3,6 +3,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\ShipInfoService;
+use App\Service\ShipTreeLayout;
 use App\Service\ShipTreeService;
 use Twig\Environment;
 
@@ -46,6 +47,22 @@ final class ShipController
             'bonuses'      => $this->shipInfo->getBonuses($typeId),
             'fly_skills'   => $flySkills,
             'requirements' => $requirements,
+        ]);
+    }
+
+    /** Every faction's ship tree, not tied to any pilot: /ships?faction={factionID} */
+    public function trees(): void
+    {
+        $factions  = array_column($this->shipTree->getFactions(), null, 'faction_id');
+        $factionId = (int) ($_GET['faction'] ?? 0);
+        if (!isset($factions[$factionId])) {
+            $factionId = array_key_first($factions);
+        }
+
+        echo $this->twig->render('pages/ships.twig', [
+            'factions' => $factions,
+            'faction'  => $factions[$factionId],
+            'layout'   => (new ShipTreeLayout([]))->build($this->shipTree->getTree($factionId)),
         ]);
     }
 

@@ -1,0 +1,64 @@
+{% extends "layout/base.twig" %}
+{% block title %}{{ faction.name }} ship tree{% endblock %}
+
+{# Link preview: generic SDE data only, nothing about any pilot #}
+{% block head %}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="EVEchievements">
+    <meta property="og:title" content="{{ faction.name }} ship tree">
+    <meta property="og:description" content="All {{ faction.ship_count }} {{ faction.name }} ships, laid out as in-game.{{ faction.description ? ' ' ~ faction.description }}">
+    <meta property="og:url" content="{{ app_url }}/ships?faction={{ faction.faction_id }}">
+    <meta property="og:image" content="https://images.evetech.net/corporations/{{ faction.corporation_id }}/logo?size=128">
+    <meta name="theme-color" content="#f4a228">
+{% endblock %}
+
+{% import 'partials/ship_tree.twig' as tree %}
+
+{% block content %}
+<div class="shiptree">
+
+    <header class="shiptree__header">
+        <div class="shiptree__pilot">
+            <img src="https://images.evetech.net/corporations/{{ faction.corporation_id }}/logo?size=64" alt="">
+            <div>
+                <span class="shiptree__eyebrow">◇ SHIP TREES</span>
+                <h1 class="shiptree__pilot-name">{{ faction.name }}</h1>
+            </div>
+        </div>
+    </header>
+
+    <nav class="shiptree__factions" aria-label="Factions">
+        {% for f in factions %}
+        <a href="?faction={{ f.faction_id }}"
+           class="faction-tab{{ f.faction_id == faction.faction_id ? ' faction-tab--active' }}"
+           {{ f.faction_id == faction.faction_id ? 'aria-current="page"' }}>
+            <img src="https://images.evetech.net/corporations/{{ f.corporation_id }}/logo?size=32" alt="">
+            <span class="faction-tab__name">{{ f.name }}</span>
+            <span class="faction-tab__count">{{ f.ship_count }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <div class="shiptree__summary">
+        <div class="stat-row">
+            <div class="stat">
+                <span class="stat__value">{{ faction.ship_count }}</span>
+                <span class="stat__label">SHIPS</span>
+            </div>
+        </div>
+        {% if faction.description %}
+        <p class="shiptree__description">{{ faction.description }}</p>
+        {% endif %}
+    </div>
+
+    {{ tree.canvas(layout, null) }}
+
+    <ul class="shiptree__legend">
+        <li><span class="ship-tile__badge ship-tile__badge--t2">II</span> Tech II</li>
+        <li><span class="ship-tile__badge ship-tile__badge--t3">III</span> Tech III</li>
+        <li><span class="ship-tile__badge ship-tile__badge--faction">◆</span> Navy / faction</li>
+        <li>Hover a class name for its required skills · click a ship for its mastery requirements, attributes and bonuses</li>
+    </ul>
+
+</div>
+{% endblock %}

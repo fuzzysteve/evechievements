@@ -23,6 +23,7 @@
     <ul class="topnav__links">
         <li><a href="/"       class="topnav__link">HOME</a></li>
         <li><a href="/browse" class="topnav__link">BROWSE</a></li>
+        <li><a href="/ships"  class="topnav__link">SHIPS</a></li>
         {% if session.pilot_id is defined and session.pilot_id %}<li><a href="/dashboard" class="topnav__link">DASHBOARD</a></li>{% endif %}
     </ul>
     {# Suggestions come from /search.json (app.js); without JS, Enter goes to the results page #}

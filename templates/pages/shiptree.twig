@@ -18,40 +18,7 @@
 {% endblock %}
 {% set roman = ['', 'I', 'II', 'III', 'IV', 'V'] %}
 
-{# Tile and box sizes must match ShipTreeLayout::TILE_W / TILE_H / PAD / LABEL #}
-{% macro ship_tile(ship, levels, roman, pilot_id) %}
-    {% set level = levels[ship.type_id] ?? null %}
-    <a href="/ship/{{ ship.type_id }}"
-       class="tree-tile tree-tile--{{ level is null ? 'locked' : (level == 5 ? 'mastered' : 'flyable') }}"
-       title="{{ ship.name }} — {{ level is null ? 'cannot fly' : (level == 0 ? 'can fly, no mastery' : 'mastery ' ~ roman[level]) }}">
-        {% if ship.tech_level > 1 %}
-        <span class="ship-tile__badge ship-tile__badge--t{{ ship.tech_level }}">{{ roman[ship.tech_level] }}</span>
-        {% elseif ship.meta_level >= 7 %}
-        <span class="ship-tile__badge ship-tile__badge--faction">◆</span>
-        {% endif %}
-        <img src="https://images.evetech.net/types/{{ ship.type_id }}/icon?size=64" alt="{{ ship.name }}" loading="lazy">
-        <span class="tree-tile__level">
-            {% if level is not null %}
-                {% for i in 1..5 %}<span class="skill-pip skill-pip--{{ i <= level ? 'filled' : 'empty' }}"></span>{% endfor %}
-            {% endif %}
-        </span>
-    </a>
-{% endmacro %}
-
-{% macro tree_box(box, levels, roman, pilot_id) %}
-    <div class="tree-box tree-box--{{ box.kind }}"
-         style="left:{{ box.x }}px;top:{{ box.y }}px;width:{{ box.w }}px;height:{{ box.h }}px">
-        <h3 class="tree-box__label"
-            title="{{ box.node.name }}{% if box.node.skills|length %} — requires {% for skill in box.node.skills %}{{ skill.name }} {{ roman[skill.level] }}{{ not loop.last ? ', ' }}{% endfor %}{% endif %}">
-            {{ box.node.name }}
-        </h3>
-        <div class="tree-box__ships">
-            {% for ship in box.node.ships %}
-                {{ _self.ship_tile(ship, levels, roman, pilot_id) }}
-            {% endfor %}
-        </div>
-    </div>
-{% endmacro %}
+{% import 'partials/ship_tree.twig' as tree %}
 
 {% block content %}
 <div class="shiptree">
@@ -100,21 +67,7 @@
         {% endif %}
     </div>
 
-    <div class="shiptree__scroll">
-        <div class="tree-canvas" style="width:{{ layout.width }}px;height:{{ layout.height }}px">
-            <svg class="tree-canvas__lines" width="{{ layout.width }}" height="{{ layout.height }}" aria-hidden="true">
-                {% for l in layout.lines %}
-                <line x1="{{ l.x1 }}" y1="{{ l.y1 }}" x2="{{ l.x2 }}" y2="{{ l.y2 }}" class="tree-line{{ l.gold ? ' tree-line--gold' }}"/>
-                {% endfor %}
-                {% for d in layout.dots %}
-                <circle cx="{{ d.x }}" cy="{{ d.y }}" r="3" class="tree-dot{{ d.gold ? ' tree-dot--gold' }}"/>
-                {% endfor %}
-            </svg>
-            {% for box in layout.boxes %}
-                {{ _self.tree_box(box, levels, roman, pilot.id) }}
-            {% endfor %}
-        </div>
-    </div>
+    {{ tree.canvas(layout, levels) }}
 
     <ul class="shiptree__legend">
         <li><span class="ship-tile__badge ship-tile__badge--t2">II</span> Tech II</li>

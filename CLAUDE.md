@@ -42,7 +42,8 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
 - Ship tree: the SDE has the groups, factions, per-faction prerequisites and `invTypes.shipTreeGroupID`,
   but **not the layout**. `ShipTreeService` derives branches from the prerequisites, and links between
   hull classes from the hull skills' own requirements (Destroyer needs Frigate III). `ShipTreeLayout`
-  turns that into lanes and pixel positions; the template draws boxes absolutely with SVG connectors.
+  turns that into lanes and pixel positions; `templates/partials/ship_tree.twig` draws it (boxes placed
+  absolutely, SVG connectors) for both the pilot tree (`/pilot/{id}/ships`) and the generic `/ships`.
   Do not hard-code positions. Its size constants must match the `.tree-box` / `.tree-tile` CSS. Some non-ship types also have `shipTreeGroupID` set, so filter on published ships that have
   masteries (`treeShipFilter`).
 - Use `published = true` and category 6 for ships. Ship/type icons and portraits come from
