@@ -4,7 +4,7 @@ namespace App;
 
 use App\Controller\{AuthController, BrowseController, HomeController, ProfileController, SearchController, ShipController};
 use App\Model\PilotRepository;
-use App\Service\{AuthService, EsiService, DataFetchService, ShipInfoService, ShipTreeService};
+use App\Service\{AuthService, Csrf, EsiService, DataFetchService, ShipInfoService, ShipTreeService};
 use App\Config\TwigFactory;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -27,6 +27,13 @@ final class Router
     {
         $path = strtok($path, '?');
 
+        // Every POST must carry the session's CSRF token ({{ csrf_field() }} in the form)
+        if ($method === 'POST' && !Csrf::isValid(Csrf::submitted())) {
+            http_response_code(403);
+            echo $this->twig->render('pages/403.twig', ['reason' => 'csrf']);
+            return;
+        }
+
         match(true) {
             $method === 'GET'  && ($path === '/' || $path === '/index2.php')
                 => (new HomeController($this->twig))->index(),
@@ -35,7 +42,7 @@ final class Router
                 => $this->authCtrl()->login(),
             $method === 'GET'  && $path === '/auth/callback'
                 => $this->authCtrl()->callback(),
-            $method === 'GET'  && $path === '/auth/logout'
+            $method === 'POST' && $path === '/auth/logout'
                 => $this->authCtrl()->logout(),
 
             $method === 'GET'  && str_starts_with($path, '/auth/fetch/')
@@ -66,9 +73,8 @@ final class Router
             $method === 'GET'  && preg_match('#^/pilot/(\d+)/ships$#', $path, $m) === 1
                 => $this->profileCtrl()->shipTree((int) $m[1]),
 
-            $method === 'GET'  && str_starts_with($path, '/pilot/')
-                => $this->profileCtrl()
-			->show(urldecode(substr($path, 7))),
+            $method === 'GET'  && preg_match('#^/pilot/(\d+)$#', $path, $m) === 1
+                => $this->profileCtrl()->show((int) $m[1]),
             $method === 'POST' && $path === '/dashboard/fetch-title'
                 => $this->profileCtrl()->fetchTitle(),
 
@@ -81,8 +87,6 @@ final class Router
             $method === 'POST' && $path === '/dashboard/visibility'
 	        => $this->profileCtrl()->updateVisibility(),
 
-            $method === 'GET' && str_starts_with($path, '/debug/mastery/')
-                => $this->debugMastery((int) substr($path, 15)),
 
 
 
@@ -127,49 +131,4 @@ final class Router
             $this->pilots
         );
     }
-
-    private function debugMastery(int $typeId): void
-    {
-    if (empty($_SESSION['pilot_id'])) { echo 'Not logged in'; return; }
-
-    $db          = \App\Config\Database::connect();
-    $skillLevels = $_SESSION['fetched']['skills']
-        ? array_column($_SESSION['fetched']['skills']['skills'], 'active_skill_level', 'skill_id')
-        : [];
-
-    // What masteries are required for this ship?
-    $stmt = $db->prepare(
-        'SELECT "masteryLevel", "certID" FROM evesde."certMasteries" WHERE "typeID" = ? ORDER BY "masteryLevel"'
-    );
-    $stmt->execute([$typeId]);
-    $masteryReqs = $stmt->fetchAll();
-
-    // For each cert, what skills are required and what does the pilot have?
-    echo "<pre>";
-    echo "Ship typeID: {$typeId}\n\n";
-
-    foreach ($masteryReqs as $req) {
-        $certId       = $req['certID'];
-        $masteryLevel = $req['masteryLevel'];
-
-        $skillReqs = $db->prepare(
-            'SELECT "certLevelInt", "skillID", "skillLevel" FROM evesde."certSkills" WHERE "certID" = ? ORDER BY "certLevelInt", "skillID"'
-        );
-        $skillReqs->execute([$certId]);
-
-        echo "Mastery {$masteryLevel} → certID {$certId}:\n";
-        foreach ($skillReqs->fetchAll() as $sr) {
-            $have    = $skillLevels[$sr['skillID']] ?? 0;
-            $need    = $sr['skillLevel'];
-            $ok      = $have >= $need ? '✓' : '✗';
-            echo "  {$ok} certLevel {$sr['certLevelInt']} skillID {$sr['skillID']} need:{$need} have:{$have}\n";
-        }
-        echo "\n";
-    }
-    echo "</pre>";
-    }
-
-
-
-
 }

@@ -62,15 +62,17 @@ final class DataFetchService
         }
 
         // Resolve skill names from evesde
-        $db           = Database::connect();
-        $ids          = array_keys($skillLevels);
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-
-        $stmt = $db->prepare(
-            "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
-        );
-        $stmt->execute($ids);
-        $names = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
+        $db    = Database::connect();
+        $ids   = array_keys($skillLevels);
+        $names = [];
+        if ($ids !== []) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $db->prepare(
+                "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+            );
+            $stmt->execute($ids);
+            $names = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
+        }
 
         foreach ($skills as &$skill) {
             $skill['skill_name'] = $names[$skill['skill_id']] ?? "Unknown #{$skill['skill_id']}";
@@ -257,14 +259,17 @@ final class DataFetchService
         $assets = $this->esi->getAssets($characterId, $token);
         $db     = Database::connect();
 
-        // ── Resolve type names from evesde ────────────────────────────────
-        $typeIds      = array_values(array_unique(array_column($assets, 'type_id')));
-        $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
-        $stmt         = $db->prepare(
-            "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
-        );
-        $stmt->execute($typeIds);
-        $typeNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
+        // ── Resolve type names from evesde (none to resolve for a pilot with no assets) ──
+        $typeIds   = array_values(array_unique(array_column($assets, 'type_id')));
+        $typeNames = [];
+        if ($typeIds !== []) {
+            $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
+            $stmt         = $db->prepare(
+                "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+            );
+            $stmt->execute($typeIds);
+            $typeNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
+        }
 
         // ── Resolve location names from mapDenormalize (id <= 65000000 only) ──
         $locationIds = array_values(array_unique(array_column($assets, 'location_id')));

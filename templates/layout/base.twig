@@ -37,7 +37,10 @@
     </form>
     <div class="topnav__status">
         {% if session.pilot_id is defined and session.pilot_id %}
-            <a href="/auth/logout" class="btn btn--outline btn--sm">LOGOUT</a>
+            <form method="POST" action="/auth/logout">
+                {{ csrf_field() }}
+                <button type="submit" class="btn btn--outline btn--sm">LOGOUT</button>
+            </form>
         {% else %}
             <a href="/auth/login" class="btn btn--primary btn--sm">AUTHENTICATE</a>
         {% endif %}

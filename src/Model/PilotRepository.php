@@ -22,15 +22,6 @@ final class PilotRepository
         return $row ?: null;
     }
 
-    public function findByName(string $name): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM pilots WHERE LOWER(name) = LOWER(?)');
-        $stmt->execute([$name]);
-        $row = $stmt->fetch();
-        return $row ?: null;
-    }
-
-
     public function getPublicPilots(int $page = 1, int $perPage = 24): array
     {
         $offset = ($page - 1) * $perPage;
@@ -38,7 +29,7 @@ final class PilotRepository
             SELECT p.*
             FROM pilots p
             WHERE p.is_public = true
-            GROUP BY p.id
+            ORDER BY p.name, p.id
             LIMIT :limit OFFSET :offset
         SQL);
         $stmt->bindValue(':limit',  $perPage, PDO::PARAM_INT);
@@ -70,18 +61,6 @@ final class PilotRepository
         return (int) $this->db->query('SELECT COUNT(*) FROM pilots WHERE is_public = true')->fetchColumn();
     }
 
-    public function getStats(int $pilotId): array
-    {
-        $row = $this->db->prepare(<<<SQL
-            SELECT
-                (SELECT COUNT(DISTINCT corporation_id) FROM corp_history WHERE pilot_id = p.id) AS corps_count,
-                EXTRACT(YEAR FROM AGE(NOW(), p.birthday)) AS years_old
-            FROM pilots p WHERE p.id = ?
-        SQL);
-        $row->execute([$pilotId]);
-        return $row->fetch() ?: [];
-    }
-
     public function setPublic(int $pilotId, bool $isPublic): void
     {
         $this->db->prepare('UPDATE pilots SET is_public = ?, updated_at = NOW() WHERE id = ?')
@@ -90,13 +69,18 @@ final class PilotRepository
 
     // ── SP / ISK / Assets value ───────────────────────────────────────────────
 
-    public function saveDisplaySpIsk(int $pilotId, ?float $sp, ?float $isk): void
+    /** Published SP (null = not shown), rounded to 3 significant figures. */
+    public function saveDisplaySp(int $pilotId, ?float $sp): void
     {
-        $displaySp  = $sp  !== null ? $this->roundSigFigs($sp)  : -1;
-        $displayIsk = $isk !== null ? $this->roundSigFigs($isk) : -1;
-        $this->db->prepare(
-            'UPDATE pilots SET sp = ?, isk = ?, updated_at = NOW() WHERE id = ?'
-        )->execute([$displaySp, $displayIsk, $pilotId]);
+        $this->db->prepare('UPDATE pilots SET sp = ?, updated_at = NOW() WHERE id = ?')
+                 ->execute([$sp !== null ? $this->roundSigFigs($sp) : -1, $pilotId]);
+    }
+
+    /** Published wallet ISK (null = not shown), rounded to 3 significant figures. */
+    public function saveDisplayIsk(int $pilotId, ?float $isk): void
+    {
+        $this->db->prepare('UPDATE pilots SET isk = ?, updated_at = NOW() WHERE id = ?')
+                 ->execute([$isk !== null ? $this->roundSigFigs($isk) : -1, $pilotId]);
     }
 
     public function saveAssetsValue(int $pilotId, ?float $value): void

@@ -53,11 +53,23 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
 
 ## Migrations
 
-- `migrations/NNN_name.sql`, run by `composer migrate` (`bin/migrate.php`). The runner does **not**
-  record versions itself, so each file must end with
-  `INSERT INTO schema_migrations (version) VALUES ('NNN_name');` and use `IF NOT EXISTS`.
+- `migrations/NNN_name.sql`, run in name order by `php bin/migrate.php`. `000` creates
+  `schema_migrations`; the runner applies each file in a transaction and records its version, so files
+  don't need their own `INSERT`. Use `IF NOT EXISTS` so re-runs are safe.
 - `.env` points at the live site's database. Don't run migrations or writes against it without asking.
 - Composer refuses to run as root, so run `php bin/migrate.php` directly instead of `composer migrate`.
+
+## Sessions, security, runtime state
+
+- Sessions are stored in `var/sessions` (owned by `www-data`, mode 700) with PHP's own GC at
+  `SESSION_LIFETIME`; the system path is swept every 24 minutes by Ubuntu's timer. Login regenerates the
+  session ID; strict mode is on; the cookie is `Secure` whenever `APP_URL` is https.
+- Every POST form needs `{{ csrf_field() }}`; `Router::dispatch` rejects POSTs without the session token
+  (403 "form expired"). Logout is a POST.
+- Production runs with `APP_ENV=production` (Twig cache in `var/cache/twig`, web requests only) and
+  `APP_DEBUG=false`. `var/cache` also holds the hourly ESI market price cache; both must stay writable by
+  `www-data`. Don't write into `var/` from root CLI runs (tests: point `ROOT` at a scratch dir).
+- Optional `ESI_CONTACT` in `.env` is appended to the ESI User-Agent (CCP asks for contact details).
 
 ## Logs
 

@@ -29,6 +29,10 @@ final class AuthController
             $this->redirect('/');
             return;
         }
+        if (!isset(AuthService::SECTION_SCOPES[$section])) {
+            $this->redirect('/dashboard');
+            return;
+        }
         $url = $this->auth->getSectionUrl($section);
         header('Location: ' . $url);
         exit;
@@ -74,6 +78,8 @@ final class AuthController
                 ));
             }
 
+            // New session ID on login, so an ID set before login can't be used afterwards
+            session_regenerate_id(true);
             $_SESSION['pilot_id']   = $character['id'];
             $_SESSION['pilot_name'] = $character['name'];
 

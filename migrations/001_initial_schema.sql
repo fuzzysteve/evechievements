@@ -33,9 +33,9 @@ CREATE TABLE IF NOT EXISTS pilots (
     corporation_ticker VARCHAR(20)
 );
 
-CREATE INDEX idx_pilots_name ON pilots(name);
-CREATE INDEX idx_pilots_corporation_id ON pilots(corporation_id);
-CREATE INDEX idx_pilots_is_public ON pilots(is_public);
+CREATE INDEX IF NOT EXISTS idx_pilots_name ON pilots(name);
+CREATE INDEX IF NOT EXISTS idx_pilots_corporation_id ON pilots(corporation_id);
+CREATE INDEX IF NOT EXISTS idx_pilots_is_public ON pilots(is_public);
 
 
 INSERT INTO schema_migrations (version) VALUES ('001_initial_schema');

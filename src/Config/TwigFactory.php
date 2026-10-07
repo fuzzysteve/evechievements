@@ -13,8 +13,10 @@ final class TwigFactory
     {
         $loader = new FilesystemLoader(ROOT . '/templates');
         $twig   = new Environment($loader, [
-            'cache'       => $_ENV['APP_ENV'] === 'production'
-                                ? ROOT . '/cache/twig' : false,
+            // Compiled-template cache in production web requests only: CLI runs (as root) would
+            // leave cache files the web server user can't overwrite.
+            'cache'       => ($_ENV['APP_ENV'] ?? '') === 'production' && PHP_SAPI !== 'cli'
+                                ? ROOT . '/var/cache/twig' : false,
             'debug'       => ($_ENV['APP_DEBUG'] ?? 'false') === 'true',
             'auto_reload' => true,
         ]);
@@ -35,6 +37,9 @@ final class TwigFactory
                 default             => (string) $v,
             };
         }));
+
+        // Hidden CSRF token input for POST forms (checked by the Router)
+        $twig->addFunction(new TwigFunction('csrf_field', [\App\Service\Csrf::class, 'field'], ['is_safe' => ['html']]));
 
         // Cache-busting URL for files under htdocs/ — assets are served with a long max-age
         $twig->addFunction(new TwigFunction('asset', function (string $path): string {

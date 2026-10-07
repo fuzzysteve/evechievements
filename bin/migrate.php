@@ -11,24 +11,32 @@ $migrationDir = __DIR__ . "/../migrations";
 $files = glob($migrationDir . "/*.sql");
 sort($files);
 
+// Each migration runs in its own transaction and is recorded here once it succeeds, so a file
+// doesn't have to insert its own version (older ones still do; ON CONFLICT makes that harmless).
+$tracked = fn(): bool => (bool) $pdo->query("SELECT to_regclass('schema_migrations')")->fetchColumn();
+$record  = $pdo->prepare("INSERT INTO schema_migrations (version) VALUES (?) ON CONFLICT (version) DO NOTHING");
+$applied = $pdo->prepare("SELECT 1 FROM schema_migrations WHERE version = ?");
+
 foreach ($files as $file) {
     $version = pathinfo($file, PATHINFO_FILENAME);
-    $check = $pdo->prepare("SELECT 1 FROM schema_migrations WHERE version = ? LIMIT 1");
-    try {
-        $check->execute([$version]);
-        if ($check->fetchColumn()) {
-            echo "[SKIP] $version
-";
+    if ($tracked()) {
+        $applied->execute([$version]);
+        if ($applied->fetchColumn()) {
+            echo "[SKIP] $version\n";
             continue;
         }
-    } catch (PDOException $e) {
-        // schema_migrations table may not exist yet on first run
     }
-    echo "[RUN]  $version
-";
-    $pdo->exec(file_get_contents($file));
-    echo "[OK]   $version
-";
+    echo "[RUN]  $version\n";
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec(file_get_contents($file));
+        $record->execute([$version]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        echo "[FAIL] $version: {$e->getMessage()}\n";
+        exit(1);
+    }
+    echo "[OK]   $version\n";
 }
-echo "Migrations complete.
-";
+echo "Migrations complete.\n";

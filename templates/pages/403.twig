@@ -2,6 +2,15 @@
 {% block title %}Private profile{% endblock %}
 {% block content %}
 <div class="browse error-page">
+    {% if reason is defined and reason == 'csrf' %}
+    <header class="browse__header">
+        <p class="browse__eyebrow">◇ 403 · FORM EXPIRED</p>
+        <h1 class="browse__title">That form has expired</h1>
+    </header>
+    <p class="error-page__text">
+        Your session changed since the page loaded, so the form couldn't be accepted. Go back, reload the page and try again.
+    </p>
+    {% else %}
     <header class="browse__header">
         <p class="browse__eyebrow">◇ 403 · PRIVATE</p>
         <h1 class="browse__title">This capsuleer keeps their records private</h1>
@@ -9,6 +18,7 @@
     <p class="error-page__text">
         Pilots choose whether their profile is public. This one hasn't made theirs visible.
     </p>
+    {% endif %}
     <div class="error-page__actions">
         <a href="/browse" class="btn btn--primary">BROWSE PILOTS</a>
         <a href="/" class="btn btn--outline">HOME</a>

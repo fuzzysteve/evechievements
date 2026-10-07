@@ -13,11 +13,21 @@ $dotenv->safeLoad();
 // Session
 $sessionName     = $_ENV['SESSION_NAME']     ?? 'evechievements';
 $sessionLifetime = (int) ($_ENV['SESSION_LIFETIME'] ?? 86400);
+
+// Sessions live in var/sessions with PHP's own garbage collection at the configured lifetime.
+// The system default path is swept by Ubuntu's phpsessionclean timer at php.ini's
+// gc_maxlifetime (24 minutes), which logged pilots out long before the cookie expired.
+ini_set('session.save_path',      ROOT . '/var/sessions');
+ini_set('session.gc_maxlifetime', (string) $sessionLifetime);
+ini_set('session.gc_probability', '1');
+ini_set('session.gc_divisor',     '100');
+ini_set('session.use_strict_mode', '1');   // never adopt a session ID the server didn't issue
+
 session_name($sessionName);
 session_set_cookie_params([
     'lifetime' => $sessionLifetime,
     'path'     => '/',
-    'secure'   => ($_ENV['APP_ENV'] ?? '') === 'production',
+    'secure'   => str_starts_with($_ENV['APP_URL'] ?? '', 'https://'),
     'httponly' => true,
     'samesite' => 'Lax',
 ]);

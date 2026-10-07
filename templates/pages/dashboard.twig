@@ -20,6 +20,7 @@
         </div>
         <div class="dashboard__visibility">
             <form method="POST" action="/dashboard/visibility">
+                {{ csrf_field() }}
                 <button type="submit" class="btn btn--{{ pilot.is_public ? 'outline' : 'ghost' }}">
                     {{ pilot.is_public ? '⊙ PUBLIC' : '⊘ PRIVATE' }}
                 </button>
@@ -33,12 +34,16 @@
     {% if saved %}
     <div class="alert alert--success">Display selections saved.</div>
     {% endif %}
+    {% if error == 'fetch_failed' %}
+    <div class="alert alert--error" role="alert">Couldn't load that data from EVE: the login was cancelled, was for a different character, or ESI didn't respond. Try again.</div>
+    {% endif %}
 
     {# ── Titles & Achievements — standalone, outside the display form ─────── #}
     <section class="data-section">
         <div class="data-section__header">
             <h2 class="section-title">◇ TITLES &amp; ACHIEVEMENTS</h2>
             <form method="POST" action="/dashboard/fetch-title">
+                {{ csrf_field() }}
                 <button type="submit" class="btn btn--outline btn--sm">→ FETCH CURRENT TITLE</button>
             </form>
         </div>
@@ -61,6 +66,7 @@
             </div>
             {% if titles|length > 0 %}
             <form method="POST" action="/dashboard/titles">
+                {{ csrf_field() }}
                 <div class="selection-group">
                     <h3 class="selection-group__title">SELECT DISPLAYED TITLE
                         <span class="selection-group__hint">— cycle titles in-game then revisit this page to collect more</span>
@@ -90,6 +96,7 @@
     </section>
 
     <form method="POST" action="/dashboard/display">
+                {{ csrf_field() }}
     <div class="dashboard__sections">
 
         {# ── Wallet ───────────────────────────────────────────────────────── #}

@@ -1,6 +1,14 @@
 {% extends "layout/base.twig" %}
 {% block title %}EVEchievements{% endblock %}
 {% block content %}
+{% set login_errors = {
+    no_code:       'EVE login was cancelled or didn\'t return a code. Try again.',
+    invalid_token: 'EVE login returned a token we couldn\'t read. Try again.',
+    auth_failed:   'Logging in with EVE failed. Try again in a moment.',
+} %}
+{% if login_errors[error] is defined %}
+<div class="home-alert"><div class="alert alert--error" role="alert">{{ login_errors[error] }}</div></div>
+{% endif %}
 <section class="hero">
     <div class="hero__left">
         <p class="hero__eyebrow">◇ THIRD-PARTY CAPSULEER REGISTRY</p>
@@ -13,7 +21,7 @@
             <a href="/auth/login" class="btn btn--primary">→ AUTHENTICATE VIA ESI</a>
             <a href="/pilot/90926985"     class="btn btn--outline">VIEW EXAMPLE PROFILE</a>
         </div>
-        <p class="hero__stats">· {{ total_pilots|number_format }} pilots indexed &nbsp;· {{ total_trophies|number_format }} achievements tracked</p>
+        <p class="hero__stats">· {{ total_pilots|number_format }} pilots indexed &nbsp;· {{ public_pilots|number_format }} public profiles</p>
     </div>
     <div class="hero__right">
         <p class="hero__card-label">◇ EXAMPLE / Steve Ronuken</p>

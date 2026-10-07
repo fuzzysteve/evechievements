@@ -30,7 +30,9 @@ final class EsiService
             'timeout'  => 15.0,
             'headers'  => [
                 'Accept'               => 'application/json',
-                'User-Agent'           => 'EVEchievements/1.0',
+                // CCP asks for contact details in the User-Agent; ESI_CONTACT adds e.g. an email
+                'User-Agent'           => trim('EVEchievements/1.0 (+' . ($_ENV['APP_URL'] ?? 'https://evechievements.online')
+                                            . (!empty($_ENV['ESI_CONTACT']) ? '; ' . $_ENV['ESI_CONTACT'] : '') . ')'),
                 'X-Tenant'             => 'tranquility',
                 'X-Compatibility-Date' => '2026-06-09',
             ],
@@ -59,29 +61,43 @@ final class EsiService
         return (float) (string) $response->getBody();
     }
 
+    /**
+     * All types' average/adjusted prices, keyed by type_id. Public and identical for everyone,
+     * so it's cached on disk for an hour (ESI itself refreshes it about hourly).
+     */
     public function getMarketPrices(): array
     {
-        // Returns all type adjusted/average prices — no auth needed
-        // Result is keyed by type_id for easy lookup
-        $prices = $this->get('markets/prices/');
-        return array_column($prices, null, 'type_id');
+        $cache = ROOT . '/var/cache/esi-market-prices.json';
+        if (is_file($cache) && filemtime($cache) > time() - 3600) {
+            $prices = json_decode((string) file_get_contents($cache), true);
+            if (is_array($prices)) {
+                return $prices;
+            }
+        }
+
+        $prices = array_column($this->get('markets/prices/'), null, 'type_id');
+        @file_put_contents($cache, json_encode($prices), LOCK_EX); // best effort: a failed write only skips caching
+        return $prices;
     }
 
+    /** Every page of a character's assets, following ESI's X-Pages header. */
     public function getAssets(int $id, string $t): array
     {
-        $all  = [];
-        $page = 1;
-
-        do {
-            $results = $this->get("characters/{$id}/assets/", $t, ['page' => $page]);
-            $all     = array_merge($all, $results);
-            $page++;
-        } while (count($results) === 1000);
-
+        [$all, $pages] = $this->getWithPages("characters/{$id}/assets/", $t, ['page' => 1]);
+        for ($page = 2; $page <= $pages; $page++) {
+            [$results] = $this->getWithPages("characters/{$id}/assets/", $t, ['page' => $page]);
+            $all = array_merge($all, $results);
+        }
         return $all;
     }
 
     private function get(string $path, ?string $token = null, array $query = []): array
+    {
+        return $this->getWithPages($path, $token, $query)[0];
+    }
+
+    /** @return array [decoded body, X-Pages (1 when absent)] */
+    private function getWithPages(string $path, ?string $token = null, array $query = []): array
     {
         $options = [];
         if (!empty($query)) {
@@ -92,7 +108,10 @@ final class EsiService
         }
         try {
             $response = $this->http->get($path, $options);
-            return json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+            return [
+                json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR),
+                max(1, (int) ($response->getHeaderLine('X-Pages') ?: 1)),
+            ];
         } catch (GuzzleException $e) {
             $this->logger->error('ESI GET failed', ['path' => $path, 'error' => $e->getMessage()]);
             throw new RuntimeException("ESI request failed: {$e->getMessage()}", 0, $e);

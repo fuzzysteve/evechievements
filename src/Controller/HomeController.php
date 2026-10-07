@@ -16,9 +16,12 @@ final class HomeController
         $db = Database::connect();
 
         $totalPilots    = (int) $db->query('SELECT COUNT(*) FROM pilots')->fetchColumn();
+        $publicPilots   = (int) $db->query('SELECT COUNT(*) FROM pilots WHERE is_public = true')->fetchColumn();
 
         echo $this->twig->render('pages/home.twig', [
             'total_pilots'    => $totalPilots,
+            'public_pilots'   => $publicPilots,
+            'error'           => $_GET['error'] ?? null,
             'online_count'    => 0, // fetched from ESI server status (optional)
         ]);
     }
