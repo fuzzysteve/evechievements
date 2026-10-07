@@ -145,6 +145,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Sortable tables: header buttons sort rows on their data-* values. Numbers sort high to low
+    // first, text A–Z; clicking the same header again reverses.
+    document.querySelectorAll('table[data-sortable]').forEach(table => {
+        const tbody = table.tBodies[0];
+        table.querySelectorAll('.sort-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const th      = btn.closest('th');
+                const numeric = btn.dataset.sortType === 'number';
+                const current = th.getAttribute('aria-sort');
+                const dir     = current ? (current === 'ascending' ? 'descending' : 'ascending')
+                                        : (numeric ? 'descending' : 'ascending');
+                const key  = btn.dataset.sortKey;
+                const sign = dir === 'ascending' ? 1 : -1;
+                const rows = [...tbody.rows].sort((a, b) => sign * (numeric
+                    ? parseFloat(a.dataset[key]) - parseFloat(b.dataset[key])
+                    : a.dataset[key].localeCompare(b.dataset[key])));
+                tbody.append(...rows);
+                table.querySelectorAll('th[aria-sort]').forEach(h => h.removeAttribute('aria-sort'));
+                th.setAttribute('aria-sort', dir);
+            });
+        });
+    });
+
     document.querySelectorAll('.section-toggle').forEach(btn => {
         btn.addEventListener('click', function() {
             const target = document.getElementById(this.dataset.target);

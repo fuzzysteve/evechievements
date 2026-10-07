@@ -54,7 +54,8 @@ final class TwigFactory
                 $rounded >= 1_000_000_000 => number_format($rounded / 1_000_000_000, max(0, $figs - 1 - (int) floor(log10($rounded / 1_000_000_000)))) . 'B',
                 $rounded >= 1_000_000     => number_format($rounded / 1_000_000,     max(0, $figs - 1 - (int) floor(log10($rounded / 1_000_000))))     . 'M',
                 $rounded >= 1_000         => number_format($rounded / 1_000,         max(0, $figs - 1 - (int) floor(log10($rounded / 1_000))))         . 'K',
-                default                   => number_format($rounded),
+                // Below 1,000 keep the significant figures as decimals (4.53, 0.00450), not a whole number
+                default                   => number_format($rounded, max(0, $figs - 1 - (int) floor(log10(abs($rounded))))),
             };
         }));
 

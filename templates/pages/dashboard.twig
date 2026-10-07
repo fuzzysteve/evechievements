@@ -172,11 +172,18 @@
                         <span class="selection-group__hint">— quantity shown, no location</span>
                     </h3>
                     <input type="text" id="asset-search" placeholder="Filter types…" class="search-input">
-                    <table class="skill-table" id="asset-table">
-                        <thead><tr><th>Show</th><th>Type</th><th>Total Qty</th><th>Est. Value</th></tr></thead>                        
+                    {# Rows carry raw numbers in data-* so app.js can sort on exact values, not the rounded text #}
+                    <table class="skill-table" id="asset-table" data-sortable>
+                        <thead><tr>
+                            <th>Show</th>
+                            <th aria-sort="ascending"><button type="button" class="sort-btn" data-sort-key="name" data-sort-type="text">Type</button></th>
+                            <th><button type="button" class="sort-btn" data-sort-key="qty" data-sort-type="number">Total Qty</button></th>
+                            <th><button type="button" class="sort-btn" data-sort-key="unit" data-sort-type="number">Unit Value</button></th>
+                            <th><button type="button" class="sort-btn" data-sort-key="value" data-sort-type="number">Est. Value</button></th>
+                        </tr></thead>
                         <tbody>
                             {% for item in assetData.all_types %}
-                            <tr class="asset-row">
+                            <tr class="asset-row" data-name="{{ item.type_name }}" data-qty="{{ item.quantity }}" data-unit="{{ item.unit_price }}" data-value="{{ item.total_value }}">
                                 <td>
                                     <input type="checkbox"
                                            name="asset_{{ item.type_id }}"
@@ -185,6 +192,7 @@
                                 </td>
                                 <td>{{ item.type_name }}</td>
                                 <td>{{ item.quantity|number_format }}</td>
+                                <td>{{ item.unit_price|sig_figs }} ISK</td>
                                 <td>{{ item.total_value|sig_figs }} ISK</td>
                             </tr>
                             {% endfor %}
