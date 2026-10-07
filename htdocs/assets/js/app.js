@@ -148,8 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.section-toggle').forEach(btn => {
         btn.addEventListener('click', function() {
             const target = document.getElementById(this.dataset.target);
-            target.classList.toggle('collapsed');
-            this.textContent = target.classList.contains('collapsed') ? '▸' : '▾';
+            const collapsed = target.classList.toggle('collapsed');
+            this.textContent = collapsed ? '▸' : '▾';
+            this.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            this.setAttribute('aria-label', (collapsed ? 'Expand' : 'Collapse') + this.getAttribute('aria-label').replace(/^\S+/, ''));
         });
     });
 });

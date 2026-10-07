@@ -115,11 +115,12 @@
         {# ── Assets ───────────────────────────────────────────────────────── #}
         <section class="data-section">
             <div class="data-section__header">
+                <button type="button" class="section-toggle" data-target="section-assets"
+                        aria-controls="section-assets" aria-expanded="true" aria-label="Collapse Assets">▾</button>
                 <h2 class="section-title">◇ ASSETS</h2>
                 <a href="/auth/fetch/assets" class="btn btn--outline btn--sm">
                     {{ session.fetched.assets is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
-                <button type="button" class="section-toggle" data-target="section-assets">▾</button>
             </div>
 
         <div id="section-assets" class="section-collapsible">
@@ -194,17 +195,18 @@
             {% else %}
             <p class="data-section__empty">Authorise ESI to load your assets.</p>
             {% endif %}
-        <div>
+        </div>
         </section>
 
         {# ── Skills / Certs / Masteries ───────────────────────────────────── #}
         <section class="data-section">
             <div class="data-section__header">
+                <button type="button" class="section-toggle" data-target="section-skills"
+                        aria-controls="section-skills" aria-expanded="true" aria-label="Collapse Skills · Certificates · Masteries">▾</button>
                 <h2 class="section-title">◇ SKILLS · CERTIFICATES · MASTERIES</h2>
                 <a href="/auth/fetch/skills" class="btn btn--outline btn--sm">
                     {{ session.fetched.skills is defined ? '↻ REFRESH' : '→ LOAD' }}
                 </a>
-                <button type="button" class="section-toggle" data-target="section-skills">▾</button>
             </div>
 
         <div id="section-skills" class="section-collapsible">
@@ -354,6 +356,7 @@
             {% else %}
             <p class="data-section__empty">Authorise ESI to load skills, certificates and masteries.</p>
             {% endif %}
+        </div>
         </section>
 
         {# ── Ship tree ────────────────────────────────────────────────────── #}
@@ -409,8 +412,6 @@
             <p class="data-section__empty">Load skills above to choose which factions' ship trees to publish.</p>
             {% endif %}
         </section>
-            </div>
-
     </div>
 
     <div class="dashboard__actions">
@@ -437,9 +438,8 @@
                         </div>
                         <button type="submit" class="btn btn--primary">SAVE DISPLAY SELECTIONS</button>
                     </div>
-
-                </form>
     </div>
+    </form>
 </div>
 {% endblock %}
 
