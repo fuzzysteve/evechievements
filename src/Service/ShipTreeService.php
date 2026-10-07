@@ -60,6 +60,20 @@ final class ShipTreeService
     }
 
     /**
+     * [typeID => masteryLevel] for every ship a pilot can fly (0 where no mastery is complete),
+     * from the session's fetched skills data. Callers check isset($skills['flyable']) first:
+     * sessions fetched before ship tree support don't have it.
+     */
+    public static function sessionLevels(array $skills): array
+    {
+        $levels = array_fill_keys($skills['flyable'], 0);
+        foreach ($skills['masteries'] as $typeId => $mastery) {
+            $levels[$typeId] = $mastery['level'];
+        }
+        return $levels;
+    }
+
+    /**
      * Per-faction summary of a pilot's levels.
      *
      * @param  array $levels  [typeID => masteryLevel] for ships the pilot can fly (0 = no mastery)

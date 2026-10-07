@@ -50,7 +50,11 @@ final class ShipController
         ]);
     }
 
-    /** Every faction's ship tree, not tied to any pilot: /ships?faction={factionID} */
+    /**
+     * Every faction's ship tree: /ships?faction={factionID}. Generic for visitors; a logged-in viewer
+     * with skills loaded sees it with their own flyable/mastery state (from their session only, shown
+     * only to them, never stored) unless they pick ?view=all.
+     */
     public function trees(): void
     {
         $factions  = array_column($this->shipTree->getFactions(), null, 'faction_id');
@@ -59,10 +63,20 @@ final class ShipController
             $factionId = array_key_first($factions);
         }
 
+        $loggedIn = !empty($_SESSION['pilot_id']);
+        $skills   = $_SESSION['fetched']['skills'] ?? null;
+        $hasTree  = $loggedIn && isset($skills['flyable']);
+        $viewAll  = ($_GET['view'] ?? '') === 'all';
+        $levels   = $hasTree && !$viewAll ? ShipTreeService::sessionLevels($skills) : null;
+
         echo $this->twig->render('pages/ships.twig', [
-            'factions' => $factions,
-            'faction'  => $factions[$factionId],
-            'layout'   => (new ShipTreeLayout([]))->build($this->shipTree->getTree($factionId)),
+            'factions'  => $factions,
+            'faction'   => $factions[$factionId],
+            'levels'    => $levels,
+            'summary'   => $levels !== null ? $this->shipTree->summarise($levels) : null,
+            'viewer'    => !$loggedIn ? null : ($hasTree ? 'ready' : ($skills === null ? 'no_skills' : 'stale')),
+            'view_all'  => $viewAll,
+            'layout'    => (new ShipTreeLayout($levels ?? []))->build($this->shipTree->getTree($factionId)),
         ]);
     }
 

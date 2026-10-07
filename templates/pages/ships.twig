@@ -27,36 +27,68 @@
         </div>
     </header>
 
+    {# The viewer's own state comes from their session only: shown only to them, never stored #}
+    {% if viewer == 'ready' %}
+    <div class="view-switch">
+        <nav class="level-tabs view-switch__tabs" aria-label="Tree view">
+            <a href="?faction={{ faction.faction_id }}" class="level-tab{{ not view_all ? ' level-tab--active' }}"{{ not view_all ? ' aria-current="page"' }}>MY SKILLS</a>
+            <a href="?faction={{ faction.faction_id }}&amp;view=all" class="level-tab{{ view_all ? ' level-tab--active' }}"{{ view_all ? ' aria-current="page"' }}>ALL SHIPS</a>
+        </nav>
+        {% if not view_all %}<span class="view-switch__note">Your skills, from your current session. Only you can see this.</span>{% endif %}
+    </div>
+    {% elseif viewer == 'no_skills' %}
+    <p class="viewer-note">Load your skills on the <a href="/dashboard">dashboard</a> to see this tree with what you can fly. Only you see that.</p>
+    {% elseif viewer == 'stale' %}
+    <p class="viewer-note">Your loaded skills predate ship trees. ↻ Refresh them on the <a href="/dashboard">dashboard</a> to see this tree with what you can fly.</p>
+    {% endif %}
+
     <nav class="shiptree__factions" aria-label="Factions">
         {% for f in factions %}
-        <a href="?faction={{ f.faction_id }}"
+        <a href="?faction={{ f.faction_id }}{{ view_all ? '&view=all' }}"
            class="faction-tab{{ f.faction_id == faction.faction_id ? ' faction-tab--active' }}"
            {{ f.faction_id == faction.faction_id ? 'aria-current="page"' }}>
             <img src="https://images.evetech.net/corporations/{{ f.corporation_id }}/logo?size=32" alt="">
             <span class="faction-tab__name">{{ f.name }}</span>
-            <span class="faction-tab__count">{{ f.ship_count }}</span>
+            <span class="faction-tab__count">{{ summary ? summary[f.faction_id].flyable ~ '/' ~ summary[f.faction_id].total : f.ship_count }}</span>
         </a>
         {% endfor %}
     </nav>
 
     <div class="shiptree__summary">
         <div class="stat-row">
+            {% if summary %}
+            {% set mine = summary[faction.faction_id] %}
+            <div class="stat">
+                <span class="stat__value">{{ mine.flyable }} / {{ mine.total }}</span>
+                <span class="stat__label">SHIPS YOU CAN FLY</span>
+            </div>
+            <div class="stat">
+                <span class="stat__value">{{ mine.mastered }}</span>
+                <span class="stat__label">MASTERY V</span>
+            </div>
+            {% else %}
             <div class="stat">
                 <span class="stat__value">{{ faction.ship_count }}</span>
                 <span class="stat__label">SHIPS</span>
             </div>
+            {% endif %}
         </div>
         {% if faction.description %}
         <p class="shiptree__description">{{ faction.description }}</p>
         {% endif %}
     </div>
 
-    {{ tree.canvas(layout, null) }}
+    {{ tree.canvas(layout, levels) }}
 
     <ul class="shiptree__legend">
         <li><span class="ship-tile__badge ship-tile__badge--t2">II</span> Tech II</li>
         <li><span class="ship-tile__badge ship-tile__badge--t3">III</span> Tech III</li>
         <li><span class="ship-tile__badge ship-tile__badge--faction">◆</span> Navy / faction</li>
+        {% if levels is not null %}
+        <li><span class="legend-swatch legend-swatch--mastered"></span> Mastery V</li>
+        <li><span class="legend-swatch legend-swatch--locked"></span> You can't fly</li>
+        <li><span class="legend-line"></span> Path to ships you can fly</li>
+        {% endif %}
         <li>Hover a class name for its required skills · click a ship for its mastery requirements, attributes and bonuses</li>
     </ul>
 

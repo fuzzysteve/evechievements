@@ -103,16 +103,6 @@ final class ProfileController
         return ['factions' => $factions, 'levels' => $levels];
     }
 
-    /** [typeID => masteryLevel] for every ship the pilot can fly, 0 where no mastery is complete. */
-    private function sessionShipLevels(array $skills): array
-    {
-        $levels = array_fill_keys($skills['flyable'], 0);
-        foreach ($skills['masteries'] as $typeId => $mastery) {
-            $levels[$typeId] = $mastery['level'];
-        }
-        return $levels;
-    }
-
     /** Dashboard: /dashboard (requires auth) */
     public function dashboard(): void
     {
@@ -129,7 +119,7 @@ final class ProfileController
         echo $this->twig->render('pages/dashboard.twig', [
             'shiptree_factions' => $this->shipTree->getFactions(),
             'shiptree_summary'  => isset($skills['flyable'])
-                ? $this->shipTree->summarise($this->sessionShipLevels($skills))
+                ? $this->shipTree->summarise(ShipTreeService::sessionLevels($skills))
                 : null,
             'pilot'         => $pilot,
             'selections'    => $this->pilots->getDisplaySelections($pilotId),
@@ -249,7 +239,7 @@ final class ProfileController
         // Ship tree — factions validated against the SDE, levels taken from session.
         // Sessions fetched before ship tree support lack 'flyable'; keep what's saved.
         if (isset($fetched['flyable'])) {
-            $levels    = $this->sessionShipLevels($fetched);
+            $levels    = ShipTreeService::sessionLevels($fetched);
             $byFaction = $this->shipTree->getShipIdsByFaction();
             $factions  = [];
             $ships     = [];

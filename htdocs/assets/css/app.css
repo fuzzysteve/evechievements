@@ -1194,3 +1194,8 @@ th[aria-sort="descending"] .sort-btn::after { content: " ▼"; color: var(--colo
 
 /* Generic ship tree (/ships): no pilot state, every ship in full colour */
 .tree-tile--neutral { border-color: var(--color-border); }
+
+/* /ships: switch between the viewer's own tree and the plain one */
+.view-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem; margin-bottom: 1.25rem; }
+.view-switch__tabs { margin-bottom: 0; }
+.view-switch__note { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); }
