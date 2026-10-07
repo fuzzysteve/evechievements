@@ -23,8 +23,10 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
   (`ProfileController::saveDisplaySelections`). Every submitted ID is checked against the session data
   (or the SDE), never trusted from POST. The `pilot_display_*` tables hold these snapshots.
 - **Never expose a pilot's skill levels unless they ticked that skill.** Masteries may be shown only
-  when published. The ship mastery page is generic (`/ship/{typeID}`, `ShipController`): only what each
-  level requires, with nothing about any pilot. `/pilot/{id}/ships/{typeID}` 301-redirects there.
+  when published. The ship page (`/ship/{typeID}`, `ShipController`) is generic: what each level
+  requires. The one exception is the logged-in viewer's OWN progress (what they're missing per level),
+  computed from their session's skills, shown only to them and never stored.
+  `/pilot/{id}/ships/{typeID}` 301-redirects to `/ship/{typeID}`.
 - SP / ISK / asset value are stored rounded to 3 significant figures. `-1` means "not shown".
 - `skills` session data includes `masteries` ([typeID => {level, name}]) and `flyable` ([typeID, ...]).
   Sessions fetched before `flyable` existed don't have it. Code must handle it being missing.

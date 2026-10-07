@@ -163,12 +163,16 @@
         <h2 class="section-title">◇ ASSETS</h2>
         <table class="skill-table">
             <thead>
-                <tr><th>Item</th></tr>
+                <tr><th>Item</th><th>Market</th></tr>
             </thead>
             <tbody>
                 {% for asset in assets %}
                 <tr>
                     <td>{{ asset.type_name }}</td>
+                    {# Jita 4-4 (station 60003760) on Fuzzwork Market #}
+                    <td><a href="https://market.fuzzwork.co.uk/station/60003760/type/{{ asset.type_id }}/"
+                           class="market-link" target="_blank" rel="noopener"
+                           aria-label="{{ asset.type_name }} on the Jita market (opens in a new tab)">Jita market ↗</a></td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -14,12 +14,17 @@
 {% endblock %}
 {% set roman = ['', 'I', 'II', 'III', 'IV', 'V'] %}
 
-{# One required skill. Requirements only — a pilot's own skill levels are never shown here #}
-{% macro skill_row(skill, roman) %}
-    <li class="req-skill">
-        <span class="req-skill__name">{{ skill.name }}</span>
-        <span class="req-skill__level" title="Level {{ skill.level }} required">
-            {% for i in 1..5 %}<span class="skill-pip skill-pip--{{ i <= skill.level ? 'filled' : 'empty' }}"></span>{% endfor %}
+{# One required skill. `have` is the logged-in viewer's own level (from their session) or null:
+   only ever shown to that viewer, never stored or shown to anyone else. #}
+{% macro skill_row(skill, roman, have = null) %}
+    {% set met = have is not null and have >= skill.level %}
+    <li class="req-skill{{ have is not null ? (met ? ' req-skill--met' : ' req-skill--missing') }}">
+        <span class="req-skill__name">{{ skill.name }}{% if have is not null and not met %} <span class="req-skill__gap">{{ roman[have] ?: '0' }} → {{ roman[skill.level] }}</span>{% endif %}</span>
+        <span class="req-skill__level" title="Level {{ skill.level }} required{{ have is not null ? ', you have ' ~ have }}">
+            {% for i in 1..5 %}
+                {% if have is null %}<span class="skill-pip skill-pip--{{ i <= skill.level ? 'filled' : 'empty' }}"></span>
+                {% else %}<span class="skill-pip skill-pip--{{ i <= have ? 'filled' : (i <= skill.level ? 'needed' : 'empty') }}"></span>{% endif %}
+            {% endfor %}
         </span>
     </li>
 {% endmacro %}
@@ -43,16 +48,20 @@
         <div class="data-section__body">
             <ul class="req-skills">
                 {% for skill in fly_skills %}
-                    {{ _self.skill_row(skill, roman) }}
+                    {{ _self.skill_row(skill, roman, mine.loaded ?? false ? (mine.skills[skill.skill_id] ?? 0) : null) }}
                 {% endfor %}
             </ul>
         </div>
     </section>
 
+    {% if mine is not null and not mine.loaded %}
+    <p class="viewer-note">Load your skills on the <a href="/dashboard">dashboard</a> to see which skills you're missing for this ship. Only you see that.</p>
+    {% endif %}
+
     {# Every tab is rendered; app.js switches them in place and keeps ?level= / ?tab= in the URL.
        Without JS the tabs are plain links. #}
     {% set tabs = [] %}
-    {% for l in 1..5 %}{% set tabs = tabs|merge([{id: 'level-' ~ l, query: 'level=' ~ l, label: 'MASTERY ' ~ roman[l]}]) %}{% endfor %}
+    {% for l in 1..5 %}{% set tabs = tabs|merge([{id: 'level-' ~ l, query: 'level=' ~ l, label: 'MASTERY ' ~ roman[l] ~ ((mine.loaded ?? false) and l <= mine.mastery ? ' ✓' : '')}]) %}{% endfor %}
     {% set tabs = tabs|merge([
         {id: 'attributes', query: 'tab=attributes', label: 'ATTRIBUTES'},
         {id: 'bonuses',    query: 'tab=bonuses',    label: 'BONUSES'},
@@ -69,15 +78,35 @@
 
     {% for l in 1..5 %}
     <section class="cert-grid" id="panel-level-{{ l }}" role="tabpanel" aria-labelledby="tab-level-{{ l }}"{{ active != 'level-' ~ l ? ' hidden' }}>
+        {% if mine.loaded ?? false %}
+        {# The viewer's own progress, from their session: not stored, not shown to anyone else #}
+        <article class="cert-card viewer-progress{{ l <= mine.mastery ? ' viewer-progress--done' }}">
+            {% if l <= mine.mastery %}
+            <h3 class="cert-card__name">✓ You have Mastery {{ roman[l] }}</h3>
+            {% else %}
+            <h3 class="cert-card__name">
+                You're missing {{ mine.missing[l]|length }} skill{{ mine.missing[l]|length == 1 ? '' : 's' }} for Mastery {{ roman[l] }}
+                <span class="cert-card__count">only you can see this</span>
+            </h3>
+            <ul class="req-skills viewer-progress__list">
+                {% for gap in mine.missing[l] %}
+                    {{ _self.skill_row({name: gap.name, level: gap.need}, roman, gap.have) }}
+                {% endfor %}
+            </ul>
+            {% if not mine.can_fly %}<p class="viewer-progress__note">Includes the skills needed to fly the ship.</p>{% endif %}
+            {% endif %}
+        </article>
+        {% endif %}
         {% for cert in requirements[l] %}
+        {% set have_met = (mine.loaded ?? false) ? cert.skills|filter(s => (mine.skills[s.skill_id] ?? 0) >= s.level)|length : null %}
         <article class="cert-card">
             <h3 class="cert-card__name" title="{{ cert.description }}">
                 {{ cert.name }} {{ roman[l] }}
-                <span class="cert-card__count">{{ cert.skills|length }} skills</span>
+                <span class="cert-card__count">{{ have_met is not null ? have_met ~ '/' ~ cert.skills|length ~ ' skills' : cert.skills|length ~ ' skills' }}</span>
             </h3>
             <ul class="req-skills">
                 {% for skill in cert.skills %}
-                    {{ _self.skill_row(skill, roman) }}
+                    {{ _self.skill_row(skill, roman, (mine.loaded ?? false) ? (mine.skills[skill.skill_id] ?? 0) : null) }}
                 {% endfor %}
             </ul>
         </article>
