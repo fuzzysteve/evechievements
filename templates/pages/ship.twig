@@ -29,6 +29,28 @@
     </li>
 {% endmacro %}
 
+{# Industry inputs at ME 0 and base times. Skill levels shown against the viewer's own (session only). #}
+{% macro industry_inputs(job, roman, mine) %}
+    {% import _self as self %}
+    {% if job.materials %}
+    <dl class="attr-list">
+        {% for m in job.materials %}
+        <div class="attr-list__row">
+            <dt>{{ m.name }}</dt>
+            <dd>{{ m.quantity|number_format }}</dd>
+        </div>
+        {% endfor %}
+    </dl>
+    {% endif %}
+    {% if job.skills %}
+    <ul class="req-skills industry-skills">
+        {% for skill in job.skills %}
+            {{ self.skill_row(skill, roman, mine.loaded ?? false ? (mine.skills[skill.skill_id] ?? 0) : null) }}
+        {% endfor %}
+    </ul>
+    {% endif %}
+{% endmacro %}
+
 {% block content %}
 <div class="shiptree">
 
@@ -38,6 +60,17 @@
             <span class="shiptree__eyebrow">◇ SHIP{% if ship.faction_name %} · {{ ship.faction_name|upper }}{% endif %}</span>
             <h1 class="shiptree__pilot-name">{{ ship.name }}</h1>
             <p class="ship-header__group">{{ ship.group_name }}{% if ship.tech_level > 1 %} · Tech {{ roman[ship.tech_level] }}{% endif %}</p>
+            {% if price %}
+            <p class="ship-header__price" title="ESI average market price, refreshed hourly">≈ {{ price|sig_figs }} ISK</p>
+            {% endif %}
+            {% if variants %}
+            <p class="ship-variants">
+                <span class="ship-variants__label">Variants</span>
+                {% for v in variants %}
+                <a class="ship-variants__link" href="/ship/{{ v.type_id }}">{{ v.name }}</a><span class="ship-variants__meta">{{ v.meta_group }}</span>
+                {% endfor %}
+            </p>
+            {% endif %}
         </div>
     </header>
 
@@ -67,6 +100,14 @@
                 {% endfor %}
             </ul>
             {% endif %}
+            {% if expert_systems %}
+            <p class="expert-systems">
+                Or fly it without training the skills, with an Expert System:
+                {% for es in expert_systems %}
+                <span class="expert-systems__item">{{ es.name }}</span> ({{ es.days }} days{{ es.event_only ? ', event only' }}){{ not loop.last ? ' ·' }}
+                {% endfor %}
+            </p>
+            {% endif %}
         </div>
     </section>
 
@@ -82,6 +123,8 @@
         {id: 'attributes', query: 'tab=attributes', label: 'ATTRIBUTES'},
         {id: 'bonuses',     query: 'tab=bonuses',     label: 'BONUSES'},
         {id: 'description', query: 'tab=description', label: 'DESCRIPTION'},
+        {id: 'manufacturing', query: 'tab=manufacturing', label: 'MANUFACTURING'},
+        {id: 'skins',       query: 'tab=skins',       label: 'SKINS'},
     ]) %}
     <nav class="level-tabs" role="tablist">
         {% for t in tabs %}
@@ -185,6 +228,52 @@
         </article>
         {% else %}
         <p class="empty-state">This ship has no description.</p>
+        {% endif %}
+    </section>
+
+
+    <section class="cert-grid cert-grid--wide" id="panel-manufacturing" role="tabpanel" aria-labelledby="tab-manufacturing"{{ active != 'manufacturing' ? ' hidden' }}>
+        {% if manufacturing %}
+        <article class="cert-card">
+            <h3 class="cert-card__name">Manufacturing</h3>
+            <p class="industry-meta">
+                <img src="https://images.evetech.net/types/{{ manufacturing.blueprint_id }}/bp?size=32" alt="" width="32" height="32" loading="lazy">
+                {{ manufacturing.blueprint_name }} · {{ (manufacturing.time / 60)|duration }} base time · materials at ME 0
+            </p>
+            {{ _self.industry_inputs(manufacturing, roman, mine) }}
+        </article>
+        {% for inv in manufacturing.invention %}
+        <article class="cert-card">
+            <h3 class="cert-card__name">Invention</h3>
+            <p class="industry-meta">
+                From {{ inv.source_name }}
+                {%- if inv.probability is not null %} · {{ (inv.probability * 100)|round }}% base chance{% endif %}
+                {%- if inv.runs %} · {{ inv.runs }} run{{ inv.runs != 1 ? 's' }} per success{% endif %}
+                {%- if inv.time %} · {{ (inv.time / 60)|duration }}{% endif %}
+            </p>
+            {{ _self.industry_inputs(inv, roman, mine) }}
+        </article>
+        {% endfor %}
+        {% else %}
+        <p class="empty-state">This ship can't be manufactured from a blueprint.</p>
+        {% endif %}
+    </section>
+
+    <section class="cert-grid" id="panel-skins" role="tabpanel" aria-labelledby="tab-skins"{{ active != 'skins' ? ' hidden' }}>
+        {% if skins %}
+        <article class="cert-card ship-skins">
+            <h3 class="cert-card__name">{{ skins|length }} SKIN{{ skins|length != 1 ? 's' }}</h3>
+            <ul class="skin-list">
+                {% for skin in skins %}
+                <li class="skin-list__item">
+                    <span>{{ skin.name }}</span>
+                    <span class="skin-list__durations">{{ skin.durations|map(d => d == -1 ? 'Permanent' : d ~ ' days')|join(' · ') }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </article>
+        {% else %}
+        <p class="empty-state">No SKINs for this ship.</p>
         {% endif %}
     </section>
 

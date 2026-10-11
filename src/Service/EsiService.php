@@ -75,7 +75,16 @@ final class EsiService
             }
         }
 
-        $prices = array_column($this->get('markets/prices/'), null, 'type_id');
+        try {
+            $prices = array_column($this->get('markets/prices/'), null, 'type_id');
+        } catch (RuntimeException $e) {
+            // ESI down: an out-of-date price list beats none (the failure is already logged)
+            $stale = is_file($cache) ? json_decode((string) file_get_contents($cache), true) : null;
+            if (is_array($stale)) {
+                return $stale;
+            }
+            throw $e;
+        }
         @file_put_contents($cache, json_encode($prices), LOCK_EX); // best effort: a failed write only skips caching
         return $prices;
     }

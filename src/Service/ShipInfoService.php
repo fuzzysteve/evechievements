@@ -149,6 +149,149 @@ final class ShipInfoService
         return $text === '' ? null : $text;
     }
 
+    /**
+     * Expert Systems that let a pilot fly this ship without the skills. Retired and unpublished ones
+     * are left out; hidden ones are handed out at events rather than sold, so they're flagged.
+     *
+     * @return array [['type_id', 'name', 'days', 'event_only' => bool], ...]
+     */
+    public function getExpertSystems(int $typeId): array
+    {
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT t."typeID" AS type_id, t."typeName" AS name, e."durationDays" AS days, e.hidden AS event_only
+            FROM evesde."expertSystemShipTypes" s
+            JOIN evesde."expertSystems" e ON e."typeID" = s."typeID"
+            JOIN evesde."invTypes" t ON t."typeID" = e."typeID"
+            WHERE s."shipTypeID" = ? AND t.published = true AND e.retired = false
+            ORDER BY e.hidden, t."typeName"
+        SQL);
+        $stmt->execute([$typeId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * How the ship is built: its blueprint's manufacturing job (materials at ME 0, skills, base time
+     * in seconds) and, for T2/T3 hulls, the invention or reverse-engineering jobs that produce that
+     * blueprint. Null when no blueprint makes it.
+     *
+     * @return array|null ['blueprint_id', 'blueprint_name', 'time', 'materials', 'skills',
+     *                     'invention' => [['source_id', 'source_name', 'time', 'probability', 'runs',
+     *                     'materials', 'skills'], ...]]
+     */
+    public function getManufacturing(int $typeId): ?array
+    {
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT p."typeID" AS blueprint_id, b."typeName" AS blueprint_name, a.time
+            FROM evesde."industryActivityProducts" p
+            JOIN evesde."invTypes" b ON b."typeID" = p."typeID"
+            LEFT JOIN evesde."industryActivity" a ON a."typeID" = p."typeID" AND a."activityID" = 1
+            WHERE p."productTypeID" = ? AND p."activityID" = 1
+            ORDER BY b.published DESC, p."typeID"
+            LIMIT 1
+        SQL);
+        $stmt->execute([$typeId]);
+        $build = $stmt->fetch();
+        if ($build === false) {
+            return null;
+        }
+        $build += $this->activityInputs((int) $build['blueprint_id'], 1);
+
+        // Activity 8: invention from a T1 blueprint, or reverse engineering from relics (T3)
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT p."typeID" AS source_id, s."typeName" AS source_name, a.time,
+                   pr.probability, p.quantity AS runs
+            FROM evesde."industryActivityProducts" p
+            JOIN evesde."invTypes" s ON s."typeID" = p."typeID"
+            LEFT JOIN evesde."industryActivity" a ON a."typeID" = p."typeID" AND a."activityID" = 8
+            LEFT JOIN evesde."industryActivityProbabilities" pr
+                   ON pr."typeID" = p."typeID" AND pr."activityID" = 8 AND pr."productTypeID" = p."productTypeID"
+            WHERE p."productTypeID" = ? AND p."activityID" = 8
+            ORDER BY pr.probability DESC NULLS LAST, s."typeName"
+        SQL);
+        $stmt->execute([$build['blueprint_id']]);
+        $build['invention'] = [];
+        foreach ($stmt->fetchAll() as $source) {
+            $source['probability'] = $source['probability'] !== null ? (float) $source['probability'] : null;
+            $build['invention'][] = $source + $this->activityInputs((int) $source['source_id'], 8);
+        }
+        return $build;
+    }
+
+    /**
+     * SKINs for this ship that exist on Tranquility (Serenity-only ones are left out), with the
+     * licence lengths each is sold in. Licence names drop the trailing "SKIN (30 Days)".
+     *
+     * @return array [['name', 'durations' => [-1 (permanent) | days, ...]], ...]
+     */
+    public function getSkins(int $typeId): array
+    {
+        // SDE copies loaded before the converter kept visibleTranquility don't have the column:
+        // fall back to the internal name, which marks most (not all) China-only skins
+        $hasVisibility = (bool) $this->db->query(<<<SQL
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'evesde' AND table_name = 'skins' AND column_name = 'visibleTranquility'
+        SQL)->fetchColumn();
+        $onTranquility = $hasVisibility
+            ? 's."visibleTranquility" = true'
+            : "s.\"internalName\" NOT LIKE '%Serenity Only%'";
+
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT s."skinID" AS skin_id, t."typeName" AS license_name, l.duration
+            FROM evesde."skinShip" ss
+            JOIN evesde.skins s ON s."skinID" = ss."skinID"
+            JOIN evesde."skinLicense" l ON l."skinID" = s."skinID"
+            JOIN evesde."invTypes" t ON t."typeID" = l."licenseTypeID"
+            WHERE ss."typeID" = ? AND {$onTranquility} AND t.published = true
+            ORDER BY s."skinID", l.duration
+        SQL);
+        $stmt->execute([$typeId]);
+
+        $names = $durations = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $id = $row['skin_id'];
+            $duration = (int) $row['duration'];
+            // The permanent licence's name is the cleanest; otherwise strip the duration suffix
+            if (!isset($names[$id]) || $duration === -1) {
+                $names[$id] = (string) preg_replace('/\s+SKIN(\s*\(.*\))?$/i', '', $row['license_name']);
+            }
+            $durations[$id][$duration] = true;
+        }
+
+        $skins = [];
+        foreach ($names as $id => $name) {
+            $list = array_keys($durations[$id]);
+            // Permanent first, then shortest to longest
+            usort($list, fn(int $a, int $b) => ($a === -1 ? PHP_INT_MIN : $a) <=> ($b === -1 ? PHP_INT_MIN : $b));
+            $skins[] = ['name' => $name, 'durations' => $list];
+        }
+        usort($skins, fn(array $a, array $b) => strcasecmp($a['name'], $b['name']));
+        return $skins;
+    }
+
+    /** Materials (by typeID, so minerals come in their usual order) and skills for one industry activity. */
+    private function activityInputs(int $blueprintId, int $activityId): array
+    {
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT m."materialTypeID" AS type_id, t."typeName" AS name, m.quantity
+            FROM evesde."industryActivityMaterials" m
+            JOIN evesde."invTypes" t ON t."typeID" = m."materialTypeID"
+            WHERE m."typeID" = ? AND m."activityID" = ?
+            ORDER BY m."materialTypeID"
+        SQL);
+        $stmt->execute([$blueprintId, $activityId]);
+        $materials = $stmt->fetchAll();
+
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT s."skillID" AS skill_id, t."typeName" AS name, s.level
+            FROM evesde."industryActivitySkills" s
+            JOIN evesde."invTypes" t ON t."typeID" = s."skillID"
+            WHERE s."typeID" = ? AND s."activityID" = ?
+            ORDER BY t."typeName"
+        SQL);
+        $stmt->execute([$blueprintId, $activityId]);
+        return ['materials' => $materials, 'skills' => $stmt->fetchAll()];
+    }
+
     private function formatValue(float $value, ?int $unitId, ?string $unit, array $typeNames): string
     {
         return match ($unitId) {

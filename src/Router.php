@@ -64,10 +64,10 @@ final class Router
                 => (new SkillController(new SkillService()))->json((int) $m[1]),
 
             $method === 'GET'  && $path === '/ships'
-                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService(), new SkillService()))->trees(),
+                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService(), new SkillService(), new EsiService($this->logger)))->trees(),
 
             $method === 'GET'  && preg_match('#^/ship/(\d+)$#', $path, $m) === 1
-                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService(), new SkillService()))->show((int) $m[1]),
+                => (new ShipController($this->twig, new ShipTreeService(), new ShipInfoService(), new SkillService(), new EsiService($this->logger)))->show((int) $m[1]),
 
             // Old pilot-specific mastery pages now live at the generic /ship/{typeID}
             $method === 'GET'  && preg_match('#^/pilot/\d+/ships/(\d+)$#', $path, $m) === 1

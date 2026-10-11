@@ -255,6 +255,31 @@ final class ShipTreeService
         return $stmt->fetch() ?: null;
     }
 
+    /**
+     * Other hulls in this ship's family (the T1 hull and everything with it as invMetaTypes parent:
+     * T2, faction, …) that have a /ship/ page.
+     *
+     * @return array [['type_id', 'name', 'meta_group'], ...]
+     */
+    public function getVariants(int $typeId): array
+    {
+        $stmt = $this->db->prepare(<<<SQL
+            SELECT t."typeID" AS type_id, t."typeName" AS name, COALESCE(mg."metaGroupName", 'Tech I') AS meta_group
+            FROM evesde."invTypes" t
+            LEFT JOIN evesde."invMetaTypes" m ON m."typeID" = t."typeID"
+            LEFT JOIN evesde."invMetaGroups" mg ON mg."metaGroupID" = m."metaGroupID"
+            WHERE t."typeID" <> ? AND {$this->treeShipFilter('t')}
+              AND COALESCE(m."parentTypeID", t."typeID") = (
+                  SELECT COALESCE(m2."parentTypeID", t2."typeID")
+                  FROM evesde."invTypes" t2
+                  LEFT JOIN evesde."invMetaTypes" m2 ON m2."typeID" = t2."typeID"
+                  WHERE t2."typeID" = ?)
+            ORDER BY COALESCE(m."metaGroupID", 1), t."typeName"
+        SQL);
+        $stmt->execute([$typeId, $typeId]);
+        return $stmt->fetchAll();
+    }
+
     /** Ships with a /ship/ page whose name contains $query; names starting with it first. */
     public function searchShips(string $query, int $limit): array
     {

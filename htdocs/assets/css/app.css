@@ -771,6 +771,12 @@ img { display: block; max-width: 100%; }
 }
 .ship-header__identity { display: flex; flex-direction: column; gap: 0.35rem; }
 .ship-header__group { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-muted); }
+.ship-header__price { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-amber); cursor: help; }
+.ship-variants { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; font-size: 0.8rem; }
+.ship-variants__label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); text-transform: uppercase; }
+.ship-variants__link { color: var(--color-cyan); text-decoration: none; }
+.ship-variants__link:hover, .ship-variants__link:focus { text-decoration: underline; }
+.ship-variants__meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); margin-right: 0.5rem; }
 .ship-section { margin-bottom: 1.25rem; }
 .level-tabs {
   display: flex;
@@ -910,6 +916,22 @@ img { display: block; max-width: 100%; }
 .bonus-list__amount { font-family: var(--font-mono); color: var(--color-amber); text-align: right; }
 .ship-description { grid-column: 1 / -1; max-width: 75ch; font-size: 0.85rem; line-height: 1.6; color: var(--color-text); }
 .ship-description p + p { margin-top: 0.75rem; }
+.expert-systems { margin-top: 0.75rem; font-size: 0.8rem; color: var(--color-text-muted); }
+.expert-systems__item { color: var(--color-text); }
+.industry-meta { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-text-muted); }
+.industry-meta img { border-radius: var(--radius); }
+.industry-skills { margin-top: 0.75rem; }
+.ship-skins { grid-column: 1 / -1; }
+.skin-list { list-style: none; columns: 2 320px; column-gap: 1.5rem; font-size: 0.8rem; }
+.skin-list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--color-border-dim);
+  break-inside: avoid;
+}
+.skin-list__durations { font-family: var(--font-mono); font-size: 0.65rem; color: var(--color-text-muted); white-space: nowrap; }
 
 /* ── Site search ─────────────────────────────────────────── */
 .visually-hidden {

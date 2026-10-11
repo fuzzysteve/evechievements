@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Controller;
 
+use App\Service\EsiService;
 use App\Service\ShipInfoService;
 use App\Service\ShipTreeLayout;
 use App\Service\ShipTreeService;
@@ -19,10 +20,13 @@ final class ShipController
         private readonly Environment     $twig,
         private readonly ShipTreeService $shipTree,
         private readonly ShipInfoService $shipInfo,
-        private readonly SkillService    $skills
+        private readonly SkillService    $skills,
+        private readonly EsiService      $esi
     ) {}
 
-    /** Ship page: /ship/{typeID}, tabs ?level={1-5} (mastery), ?tab=attributes, ?tab=bonuses, ?tab=description */
+    private const TABS = ['attributes', 'bonuses', 'description', 'manufacturing', 'skins'];
+
+    /** Ship page: /ship/{typeID}, tabs ?level={1-5} (mastery), ?tab={attributes|bonuses|description|manufacturing|skins} */
     public function show(int $typeId): void
     {
         $ship = $this->shipTree->getShip($typeId);
@@ -36,7 +40,7 @@ final class ShipController
         if ($level < 1 || $level > 5) {
             $level = 1;
         }
-        $tab = in_array($_GET['tab'] ?? '', ['attributes', 'bonuses', 'description'], true) ? $_GET['tab'] : null;
+        $tab = in_array($_GET['tab'] ?? '', self::TABS, true) ? $_GET['tab'] : null;
 
         $flySkills    = $this->shipTree->getFlyRequirements($typeId);
         $requirements = $this->shipTree->getMasteryRequirements($typeId);
@@ -49,9 +53,26 @@ final class ShipController
             'attributes'   => $this->shipInfo->getAttributes($typeId),
             'bonuses'      => $this->shipInfo->getBonuses($typeId),
             'description'  => $this->shipInfo->getDescription($typeId),
+            'manufacturing'  => $this->shipInfo->getManufacturing($typeId),
+            'skins'          => $this->shipInfo->getSkins($typeId),
+            'expert_systems' => $this->shipInfo->getExpertSystems($typeId),
+            'variants'       => $this->shipTree->getVariants($typeId),
+            'price'          => $this->estimatedPrice($typeId),
             'fly_skills'   => $flySkills,
             'requirements' => $requirements,
         ]);
+    }
+
+    /** ESI's average market price (adjusted price as a fallback); null if ESI has none or is down. */
+    private function estimatedPrice(int $typeId): ?float
+    {
+        try {
+            $price = $this->esi->getMarketPrices()[$typeId] ?? [];
+        } catch (\RuntimeException) {
+            return null; // already logged by EsiService
+        }
+        $value = (float) ($price['average_price'] ?? $price['adjusted_price'] ?? 0);
+        return $value > 0 ? $value : null;
     }
 
     /**
