@@ -96,7 +96,9 @@ final class ShipInfoService
     }
 
     /**
-     * Bonuses grouped as in-game: one group per skill (per level of that skill), then role bonuses.
+     * Bonuses grouped as in-game: one group per skill (per level of that skill), then role bonuses,
+     * then misc bonuses (skillID -2, e.g. tactical destroyer modes). `importance` is the display
+     * order; traitID follows the SDE file order, which isn't.
      *
      * @return array [['title' => …, 'bonuses' => [['amount' => '5%'|null, 'text' => …], ...]], ...]
      */
@@ -109,15 +111,17 @@ final class ShipInfoService
             LEFT JOIN evesde."eveUnits" u ON u."unitID" = tr."unitID"
             LEFT JOIN evesde."invTypes" k ON k."typeID" = tr."skillID"
             WHERE tr."typeID" = ?
-            ORDER BY tr."skillID" < 0, tr."skillID", tr."traitID"
+            ORDER BY tr."skillID" < 0, tr."skillID" = -2, tr."skillID", tr.importance, tr."traitID"
         SQL);
         $stmt->execute([$typeId]);
 
         $groups = [];
         foreach ($stmt->fetchAll() as $row) {
-            $title = $row['skill_id'] > 0
-                ? ($row['skill_name'] ?? "Skill #{$row['skill_id']}") . ' bonuses (per skill level)'
-                : 'Role bonuses';
+            $title = match (true) {
+                $row['skill_id'] > 0  => ($row['skill_name'] ?? "Skill #{$row['skill_id']}") . ' bonuses (per skill level)',
+                $row['skill_id'] == -2 => 'Other bonuses',
+                default               => 'Role bonuses',
+            };
             $groups[$title][] = [
                 'amount' => $row['bonus'] !== null ? $this->formatBonus((float) $row['bonus'], $row['unit']) : null,
                 // In-game "showinfo" links become plain text
