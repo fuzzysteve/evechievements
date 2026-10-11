@@ -35,9 +35,12 @@ skills, certificates, ship masteries, ship trees, wallet/asset values and titles
 
 ## SDE
 
-- The app reads the EVE SDE from the `evesde` schema in the same Postgres database. Identifiers are
-  camelCase and must be quoted: `evesde."invTypes"."typeID"`.
-- `evesde."shipSkills"` (added by the owner) holds the **direct** skill requirements of every type,
+- The app reads the EVE SDE from the `evesdeactive` schema in the same Postgres database. Identifiers are
+  camelCase and must be quoted: `evesdeactive."invTypes"."typeID"`.
+- New SDE builds are swapped in by `sudo bin/refresh-sde.sh`: it restores the pipeline's dump, which
+  arrives as schema `evesde`, then renames `evesdeactive` → `evesdeprevious` and `evesde` → `evesdeactive`
+  in one transaction. Never reference `evesde.` in app code: that's the staging name.
+- `evesdeactive."shipSkills"` (added by the owner) holds the **direct** skill requirements of every type,
   skills included. It is not transitive.
 - Masteries: `certMasteries.masteryLevel` is 0-based (0 → mastery I). A mastery level is complete when
   every cert in it is complete at ≥ that level, and the pilot can fly the ship.

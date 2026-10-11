@@ -36,9 +36,9 @@ final class ShipTreeService
             SELECT f."factionID" AS faction_id, c."factionName" AS name,
                    c."corporationID" AS corporation_id, f.description,
                    COUNT(t."typeID") AS ship_count
-            FROM evesde."shipTreeFactions" f
-            JOIN evesde."chrFactions" c ON c."factionID" = f."factionID"
-            JOIN evesde."invTypes" t ON t."factionID" = f."factionID"
+            FROM evesdeactive."shipTreeFactions" f
+            JOIN evesdeactive."chrFactions" c ON c."factionID" = f."factionID"
+            JOIN evesdeactive."invTypes" t ON t."factionID" = f."factionID"
             WHERE {$this->treeShipFilter('t')}
             GROUP BY f."factionID", c."factionName", c."corporationID", f.description
             ORDER BY f."factionID"
@@ -49,7 +49,7 @@ final class ShipTreeService
     public function getShipIdsByFaction(): array
     {
         $rows = $this->db->query(
-            "SELECT t.\"factionID\", t.\"typeID\" FROM evesde.\"invTypes\" t WHERE {$this->treeShipFilter('t')}"
+            "SELECT t.\"factionID\", t.\"typeID\" FROM evesdeactive.\"invTypes\" t WHERE {$this->treeShipFilter('t')}"
         )->fetchAll();
 
         $byFaction = [];
@@ -115,8 +115,8 @@ final class ShipTreeService
             SELECT t."typeID" AS type_id, t."typeName" AS name, t."shipTreeGroupID" AS group_id,
                    COALESCE(t."techLevel", 1) AS tech_level, COALESCE(t."metaLevel", 0) AS meta_level,
                    t.mass, g.name AS group_name
-            FROM evesde."invTypes" t
-            JOIN evesde."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
+            FROM evesdeactive."invTypes" t
+            JOIN evesdeactive."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
             WHERE t."factionID" = ? AND {$this->treeShipFilter('t')}
             ORDER BY t."metaLevel", t."typeName"
         SQL);
@@ -144,8 +144,8 @@ final class ShipTreeService
         $stmt = $this->db->prepare(<<<SQL
             SELECT p."groupID", p."skillID", p.level,
                    COALESCE(k."typeName", 'Skill #' || p."skillID"::text) AS skill_name
-            FROM evesde."shipTreeGroupPreReqSkills" p
-            LEFT JOIN evesde."invTypes" k ON k."typeID" = p."skillID"
+            FROM evesdeactive."shipTreeGroupPreReqSkills" p
+            LEFT JOIN evesdeactive."invTypes" k ON k."typeID" = p."skillID"
             WHERE p."factionID" = ? AND p.display = true
             ORDER BY p.level, k."typeName"
         SQL);
@@ -209,7 +209,7 @@ final class ShipTreeService
 
         // Skills the starting hulls need, displayed or not (Spaceship Command for Corvette/Shuttle)
         $stmt = $this->db->prepare(
-            'SELECT "groupID", "skillID" FROM evesde."shipTreeGroupPreReqSkills" WHERE "factionID" = ?'
+            'SELECT "groupID", "skillID" FROM evesdeactive."shipTreeGroupPreReqSkills" WHERE "factionID" = ?'
         );
         $stmt->execute([$factionId]);
         $starterSkills = [];
@@ -246,9 +246,9 @@ final class ShipTreeService
             SELECT t."typeID" AS type_id, t."typeName" AS name, t."factionID" AS faction_id,
                    COALESCE(t."techLevel", 1) AS tech_level, COALESCE(t."metaLevel", 0) AS meta_level,
                    g.name AS group_name, f."factionName" AS faction_name
-            FROM evesde."invTypes" t
-            JOIN evesde."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
-            LEFT JOIN evesde."chrFactions" f ON f."factionID" = t."factionID"
+            FROM evesdeactive."invTypes" t
+            JOIN evesdeactive."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
+            LEFT JOIN evesdeactive."chrFactions" f ON f."factionID" = t."factionID"
             WHERE t."typeID" = ? AND {$this->treeShipFilter('t')}
         SQL);
         $stmt->execute([$typeId]);
@@ -265,14 +265,14 @@ final class ShipTreeService
     {
         $stmt = $this->db->prepare(<<<SQL
             SELECT t."typeID" AS type_id, t."typeName" AS name, COALESCE(mg."metaGroupName", 'Tech I') AS meta_group
-            FROM evesde."invTypes" t
-            LEFT JOIN evesde."invMetaTypes" m ON m."typeID" = t."typeID"
-            LEFT JOIN evesde."invMetaGroups" mg ON mg."metaGroupID" = m."metaGroupID"
+            FROM evesdeactive."invTypes" t
+            LEFT JOIN evesdeactive."invMetaTypes" m ON m."typeID" = t."typeID"
+            LEFT JOIN evesdeactive."invMetaGroups" mg ON mg."metaGroupID" = m."metaGroupID"
             WHERE t."typeID" <> ? AND {$this->treeShipFilter('t')}
               AND COALESCE(m."parentTypeID", t."typeID") = (
                   SELECT COALESCE(m2."parentTypeID", t2."typeID")
-                  FROM evesde."invTypes" t2
-                  LEFT JOIN evesde."invMetaTypes" m2 ON m2."typeID" = t2."typeID"
+                  FROM evesdeactive."invTypes" t2
+                  LEFT JOIN evesdeactive."invMetaTypes" m2 ON m2."typeID" = t2."typeID"
                   WHERE t2."typeID" = ?)
             ORDER BY COALESCE(m."metaGroupID", 1), t."typeName"
         SQL);
@@ -287,9 +287,9 @@ final class ShipTreeService
         $stmt = $this->db->prepare(<<<SQL
             SELECT t."typeID" AS type_id, t."typeName" AS name, g.name AS group_name,
                    f."factionName" AS faction_name
-            FROM evesde."invTypes" t
-            JOIN evesde."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
-            LEFT JOIN evesde."chrFactions" f ON f."factionID" = t."factionID"
+            FROM evesdeactive."invTypes" t
+            JOIN evesdeactive."shipTreeGroups" g ON g."groupID" = t."shipTreeGroupID"
+            LEFT JOIN evesdeactive."chrFactions" f ON f."factionID" = t."factionID"
             WHERE t."typeName" ILIKE :contains AND {$this->treeShipFilter('t')}
             ORDER BY t."typeName" ILIKE :prefix DESC, t."typeName"
             LIMIT :limit
@@ -315,7 +315,7 @@ final class ShipTreeService
         }
         $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
         $stmt = $this->db->prepare(
-            "SELECT \"typeID\", \"skillID\" AS skill_id, level FROM evesde.\"shipSkills\" WHERE \"typeID\" IN ({$placeholders})"
+            "SELECT \"typeID\", \"skillID\" AS skill_id, level FROM evesdeactive.\"shipSkills\" WHERE \"typeID\" IN ({$placeholders})"
         );
         $stmt->execute($typeIds);
 
@@ -332,8 +332,8 @@ final class ShipTreeService
         $stmt = $this->db->prepare(<<<SQL
             SELECT s."skillID" AS skill_id, s.level,
                    COALESCE(k."typeName", 'Skill #' || s."skillID"::text) AS name
-            FROM evesde."shipSkills" s
-            LEFT JOIN evesde."invTypes" k ON k."typeID" = s."skillID"
+            FROM evesdeactive."shipSkills" s
+            LEFT JOIN evesdeactive."invTypes" k ON k."typeID" = s."skillID"
             WHERE s."typeID" = ?
             ORDER BY s."groupID"
         SQL);
@@ -354,10 +354,10 @@ final class ShipTreeService
             SELECT m."masteryLevel" + 1 AS mastery_level, c."certID" AS cert_id, c.name AS cert_name,
                    c.description, s."skillID" AS skill_id, s."skillLevel" AS level,
                    COALESCE(k."typeName", 'Skill #' || s."skillID"::text) AS skill_name
-            FROM evesde."certMasteries" m
-            JOIN evesde."certCerts" c  ON c."certID" = m."certID"
-            JOIN evesde."certSkills" s ON s."certID" = m."certID" AND s."certLevelInt" = m."masteryLevel" + 1
-            LEFT JOIN evesde."invTypes" k ON k."typeID" = s."skillID"
+            FROM evesdeactive."certMasteries" m
+            JOIN evesdeactive."certCerts" c  ON c."certID" = m."certID"
+            JOIN evesdeactive."certSkills" s ON s."certID" = m."certID" AND s."certLevelInt" = m."masteryLevel" + 1
+            LEFT JOIN evesdeactive."invTypes" k ON k."typeID" = s."skillID"
             WHERE m."typeID" = ? AND s."skillLevel" > 0
             ORDER BY m."masteryLevel", c.name, k."typeName"
         SQL);
@@ -383,7 +383,7 @@ final class ShipTreeService
     {
         return <<<SQL
             {$alias}.published = true AND {$alias}."shipTreeGroupID" IS NOT NULL
-            AND EXISTS (SELECT 1 FROM evesde."certMasteries" m WHERE m."typeID" = {$alias}."typeID")
+            AND EXISTS (SELECT 1 FROM evesdeactive."certMasteries" m WHERE m."typeID" = {$alias}."typeID")
         SQL;
     }
 
@@ -465,7 +465,7 @@ final class ShipTreeService
         }
         $placeholders = implode(',', array_fill(0, count($skillIds), '?'));
         $stmt = $this->db->prepare(
-            "SELECT \"typeID\", \"skillID\", level FROM evesde.\"shipSkills\" WHERE level >= ? AND \"typeID\" IN ({$placeholders})"
+            "SELECT \"typeID\", \"skillID\", level FROM evesdeactive.\"shipSkills\" WHERE level >= ? AND \"typeID\" IN ({$placeholders})"
         );
         $stmt->execute([$minLevel, ...$skillIds]);
 

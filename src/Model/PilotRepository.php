@@ -151,7 +151,7 @@ final class PilotRepository
             SELECT da.type_id, da.quantity,
                    COALESCE(t."typeName", 'Unknown #' || da.type_id::text) AS type_name
             FROM pilot_display_assets da
-            LEFT JOIN evesde."invTypes" t ON t."typeID" = da.type_id
+            LEFT JOIN evesdeactive."invTypes" t ON t."typeID" = da.type_id
             WHERE da.pilot_id = ?
             ORDER BY t."typeName"
         SQL);
@@ -209,7 +209,7 @@ final class PilotRepository
             SELECT ds.skill_id, ds.level AS active_level, ds.level AS trained_level,
                    COALESCE(t."typeName", 'Unknown #' || ds.skill_id::text) AS skill_name
             FROM pilot_display_skills ds
-            LEFT JOIN evesde."invTypes" t ON t."typeID" = ds.skill_id
+            LEFT JOIN evesdeactive."invTypes" t ON t."typeID" = ds.skill_id
             WHERE ds.pilot_id = ?
             ORDER BY t."typeName"
         SQL);
@@ -219,7 +219,7 @@ final class PilotRepository
             SELECT dc.cert_id, dc.level,
                    COALESCE(c.name, 'Cert #' || dc.cert_id::text) AS cert_name
             FROM pilot_display_certs dc
-            LEFT JOIN evesde."certCerts" c ON c."certID" = dc.cert_id
+            LEFT JOIN evesdeactive."certCerts" c ON c."certID" = dc.cert_id
             WHERE dc.pilot_id = ?
             ORDER BY c.name
         SQL);
@@ -229,7 +229,7 @@ final class PilotRepository
             SELECT dm.type_id, dm.mastery_level,
                    COALESCE(t."typeName", 'Type #' || dm.type_id::text) AS type_name
             FROM pilot_display_masteries dm
-            LEFT JOIN evesde."invTypes" t ON t."typeID" = dm.type_id
+            LEFT JOIN evesdeactive."invTypes" t ON t."typeID" = dm.type_id
             WHERE dm.pilot_id = ?
             ORDER BY t."typeName"
         SQL);
@@ -267,7 +267,7 @@ final class PilotRepository
 
         if (!empty($char['character_title_id'])) {
             $titleId = $char['character_title_id'];
-            $stmt = $this->db->prepare('SELECT "titleName" FROM evesde."chrTitles" WHERE "titleID" = ?');
+            $stmt = $this->db->prepare('SELECT "titleName" FROM evesdeactive."chrTitles" WHERE "titleID" = ?');
             $stmt->execute([$titleId]);
             $titleName = $stmt->fetchColumn() ?: $titleId;
             $this->upsertTitle($pilotId, $titleId, $titleName);

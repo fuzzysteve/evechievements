@@ -61,14 +61,14 @@ final class DataFetchService
             $skillLevels[$skill['skill_id']] = $skill['active_skill_level'];
         }
 
-        // Resolve skill names from evesde
+        // Resolve skill names from evesdeactive
         $db    = Database::connect();
         $ids   = array_keys($skillLevels);
         $names = [];
         if ($ids !== []) {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
             $stmt = $db->prepare(
-                "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+                "SELECT \"typeID\", \"typeName\" FROM evesdeactive.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
             );
             $stmt->execute($ids);
             $names = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
@@ -108,7 +108,7 @@ final class DataFetchService
 
 	// Load ship skill requirements [typeID][skillID => level]
         $stmt = $db->query(
-            'SELECT "typeID", "skillID", "level" FROM evesde."shipSkills"'
+            'SELECT "typeID", "skillID", "level" FROM evesdeactive."shipSkills"'
         );
         $shipSkillReqs = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -118,7 +118,7 @@ final class DataFetchService
         // Load all cert skill requirements in one query
         // [certID][certLevelInt] => [[skillID, skillLevel], ...]
         $stmt = $db->query(
-            'SELECT "certID", "certLevelInt", "skillID", "skillLevel" FROM evesde."certSkills" ORDER BY "certID", "certLevelInt"'
+            'SELECT "certID", "certLevelInt", "skillID", "skillLevel" FROM evesdeactive."certSkills" ORDER BY "certID", "certLevelInt"'
         );
         $certSkills = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -152,9 +152,9 @@ final class DataFetchService
 
         // Load mastery requirements
         // [typeID][masteryLevel] => [certID, ...]
-            #'SELECT "typeID", "masteryLevel", "certID" FROM evesde."certMasteries" join evesde."invTypes" on evesde."certMasteries"."typeID"=evesde."invTypes"."typeID" where evesde."invTypes".published=true ORDER BY "typeID", "masteryLevel"'
+            #'SELECT "typeID", "masteryLevel", "certID" FROM evesdeactive."certMasteries" join evesdeactive."invTypes" on evesdeactive."certMasteries"."typeID"=evesdeactive."invTypes"."typeID" where evesdeactive."invTypes".published=true ORDER BY "typeID", "masteryLevel"'
         $stmt = $db->query(
-            'SELECT "certMasteries"."typeID", "masteryLevel", "certID" FROM evesde."certMasteries" join evesde."invTypes" on evesde."certMasteries"."typeID"=evesde."invTypes"."typeID" join evesde."invGroups" on evesde."invTypes"."groupID"=evesde."invGroups"."groupID" where evesde."invTypes".published=true and evesde."invGroups"."categoryID"=6 ORDER BY "typeID", "masteryLevel"'
+            'SELECT "certMasteries"."typeID", "masteryLevel", "certID" FROM evesdeactive."certMasteries" join evesdeactive."invTypes" on evesdeactive."certMasteries"."typeID"=evesdeactive."invTypes"."typeID" join evesdeactive."invGroups" on evesdeactive."invTypes"."groupID"=evesdeactive."invGroups"."groupID" where evesdeactive."invTypes".published=true and evesdeactive."invGroups"."categoryID"=6 ORDER BY "typeID", "masteryLevel"'
         );
         $masteryReqs = [];
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -206,7 +206,7 @@ final class DataFetchService
         if (!empty($certIds)) {
             $placeholders = implode(',', array_fill(0, count($certIds), '?'));
             $stmt = $db->prepare(
-                "SELECT \"certID\", name FROM evesde.\"certCerts\" WHERE \"certID\" IN ({$placeholders})"
+                "SELECT \"certID\", name FROM evesdeactive.\"certCerts\" WHERE \"certID\" IN ({$placeholders})"
             );
             $stmt->execute($certIds);
             $certNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -218,7 +218,7 @@ final class DataFetchService
         if (!empty($typeIds)) {
             $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
             $stmt = $db->prepare(
-                "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+                "SELECT \"typeID\", \"typeName\" FROM evesdeactive.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
             );
             $stmt->execute($typeIds);
             $typeNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -259,13 +259,13 @@ final class DataFetchService
         $assets = $this->esi->getAssets($characterId, $token);
         $db     = Database::connect();
 
-        // ── Resolve type names from evesde (none to resolve for a pilot with no assets) ──
+        // ── Resolve type names from evesdeactive (none to resolve for a pilot with no assets) ──
         $typeIds   = array_values(array_unique(array_column($assets, 'type_id')));
         $typeNames = [];
         if ($typeIds !== []) {
             $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
             $stmt         = $db->prepare(
-                "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+                "SELECT \"typeID\", \"typeName\" FROM evesdeactive.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
             );
             $stmt->execute($typeIds);
             $typeNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [typeID => typeName]
@@ -279,7 +279,7 @@ final class DataFetchService
         if (!empty($resolveIds)) {
             $placeholders = implode(',', array_fill(0, count($resolveIds), '?'));
             $stmt = $db->prepare(
-                "SELECT \"itemID\", \"itemName\" FROM evesde.\"mapDenormalize\" WHERE \"itemID\" IN ({$placeholders})"
+                "SELECT \"itemID\", \"itemName\" FROM evesdeactive.\"mapDenormalize\" WHERE \"itemID\" IN ({$placeholders})"
             );
             $stmt->execute(array_values($resolveIds));
             $locationNames = $stmt->fetchAll(PDO::FETCH_KEY_PAIR); // [itemID => itemName]

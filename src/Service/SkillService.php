@@ -44,9 +44,9 @@ final class SkillService
                    MAX(CASE WHEN a."attributeID" = {$rank}      THEN COALESCE(a."valueFloat", a."valueInt") END) AS rank,
                    MAX(CASE WHEN a."attributeID" = {$primary}   THEN COALESCE(a."valueFloat", a."valueInt") END) AS primary_attr,
                    MAX(CASE WHEN a."attributeID" = {$secondary} THEN COALESCE(a."valueFloat", a."valueInt") END) AS secondary_attr
-            FROM evesde."invTypes" t
-            JOIN evesde."invGroups" g ON g."groupID" = t."groupID"
-            LEFT JOIN evesde."dgmTypeAttributes" a ON a."typeID" = t."typeID"
+            FROM evesdeactive."invTypes" t
+            JOIN evesdeactive."invGroups" g ON g."groupID" = t."groupID"
+            LEFT JOIN evesdeactive."dgmTypeAttributes" a ON a."typeID" = t."typeID"
                  AND a."attributeID" IN ({$rank}, {$primary}, {$secondary})
             WHERE t."typeID" = ? AND t.published = true AND g."categoryID" = {$category}
             GROUP BY t."typeID", t."typeName", g."groupName", t.description
@@ -59,8 +59,8 @@ final class SkillService
 
         $prereqs = $this->db->prepare(<<<SQL
             SELECT s."skillID" AS skill_id, k."typeName" AS name, s.level
-            FROM evesde."shipSkills" s
-            JOIN evesde."invTypes" k ON k."typeID" = s."skillID"
+            FROM evesdeactive."shipSkills" s
+            JOIN evesdeactive."invTypes" k ON k."typeID" = s."skillID"
             WHERE s."typeID" = ?
             ORDER BY s."groupID"
         SQL);
@@ -107,8 +107,8 @@ final class SkillService
         $stmt = $this->db->prepare(<<<SQL
             SELECT t."typeID", t."typeName",
                    COALESCE(a."valueFloat", a."valueInt", 1) AS rank
-            FROM evesde."invTypes" t
-            LEFT JOIN evesde."dgmTypeAttributes" a ON a."typeID" = t."typeID" AND a."attributeID" = {$rank}
+            FROM evesdeactive."invTypes" t
+            LEFT JOIN evesdeactive."dgmTypeAttributes" a ON a."typeID" = t."typeID" AND a."attributeID" = {$rank}
             WHERE t."typeID" IN ({$placeholders})
         SQL);
         $stmt->execute($skillIds);
@@ -136,7 +136,7 @@ final class SkillService
             }
             $placeholders = implode(',', array_fill(0, count($frontier), '?'));
             $stmt = $this->db->prepare(
-                "SELECT \"typeID\", \"skillID\", level FROM evesde.\"shipSkills\" WHERE \"typeID\" IN ({$placeholders})"
+                "SELECT \"typeID\", \"skillID\", level FROM evesdeactive.\"shipSkills\" WHERE \"typeID\" IN ({$placeholders})"
             );
             $stmt->execute($frontier);
 

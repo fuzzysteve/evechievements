@@ -1,22 +1,27 @@
 #!/bin/bash
-# Replace the site's evesde schema with a new SDE build, without blocking the site.
+# Swap a new SDE build into the site's database without blocking the site.
 #
 #   sudo bin/refresh-sde.sh [--drop-old] [DUMP]
 #
-# DUMP is a pg_dump of the `evesde` schema (custom format), by default the newest
-# sdeyaml_postgresschema_*.pgdump from the jsonl-evesde pipeline. pg_restore can't restore into a
-# different schema name, so the dump is restored into a throwaway database, renamed to evesde_new
-# there, and loaded alongside the live schema. Nothing the site reads changes until the final swap:
-# two schema renames in one transaction. The old schema is kept as evesde_old so the swap can be
-# undone; --drop-old removes it once the swap is done.
+# The site reads the `evesdeactive` schema. DUMP is a pg_dump of the jsonl-evesde pipeline's `evesde`
+# schema (custom format), by default its latest published one (the latest-postgresschema.pgdump
+# symlink). It is restored as-is, so it lands as `evesde` next to the live schema; nothing the site
+# reads changes until the swap, two renames in one transaction:
+#   evesdeactive -> evesdeprevious,  evesde -> evesdeactive
+# evesdeprevious is kept so the swap can be undone; --drop-old removes it once the swap is done.
 #
-# Runs as root (uses sudo -u postgres). Refuses to run while the SDE pipeline is running, as its
-# newest dump may still be being written.
+# Runs as root (uses sudo -u postgres: peer auth, no passwords). Refuses to run while the SDE
+# pipeline is running, as the dump it would pick may still be being written.
 set -euo pipefail
 
 SITE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DUMP_DIR=/opt/sde/output
+# The pipeline publishes each build here and points this symlink at the newest
+LATEST_DUMP=/home/web/fuzzwork/htdocs/dump/latest-postgresschema.pgdump
 PIPELINE_LOCK=/home/scripts/jsonl-evesde/.run-conversion.lock
+
+ACTIVE=evesdeactive
+STAGING=evesde          # the schema name inside the pipeline's dump
+PREVIOUS=evesdeprevious
 
 DROP_OLD=0
 DUMP=""
@@ -40,7 +45,9 @@ DB_NAME=$(env_value DB_NAME)
 DB_USER=$(env_value DB_USER)
 [ -n "$DB_NAME" ] && [ -n "$DB_USER" ] || die "DB_NAME / DB_USER not found in $SITE_DIR/.env"
 
-psql_site() { sudo -u postgres psql -d "$DB_NAME" -v ON_ERROR_STOP=1 -qAt "$@"; }
+# Quiet NOTICEs: DROP SCHEMA ... CASCADE lists every table
+psql_site() { sudo -u postgres env PGOPTIONS='-c client_min_messages=warning' psql -d "$DB_NAME" -v ON_ERROR_STOP=1 -qAt "$@"; }
+schema_exists() { [ -n "$(psql_site -c "SELECT 1 FROM pg_namespace WHERE nspname = '$1'")" ]; }
 
 # The pipeline holds an flock on this file while it runs
 if [ -e "$PIPELINE_LOCK" ]; then
@@ -49,82 +56,78 @@ if [ -e "$PIPELINE_LOCK" ]; then
 fi
 
 if [ -z "$DUMP" ]; then
-    DUMP=$(ls -t "$DUMP_DIR"/sdeyaml_postgresschema_*.pgdump 2>/dev/null | head -1 || true)
-    [ -n "$DUMP" ] || die "no sdeyaml_postgresschema_*.pgdump in $DUMP_DIR"
+    DUMP=$(readlink -f "$LATEST_DUMP" || true)
+    [ -n "$DUMP" ] && [ -e "$DUMP" ] || die "$LATEST_DUMP is missing or points nowhere; pass a dump path"
 fi
 [ -r "$DUMP" ] || die "can't read $DUMP"
-pg_restore -l "$DUMP" >/dev/null || die "$DUMP isn't a readable pg_dump archive"
+LISTING=$(pg_restore -l "$DUMP") || die "$DUMP isn't a readable pg_dump archive"
+grep -q "SCHEMA - $STAGING " <<<"$LISTING" || die "$DUMP has no '$STAGING' schema"
 log "Dump: $DUMP"
 
-for leftover in evesde_new evesde_old; do
-    if [ -n "$(psql_site -c "SELECT 1 FROM pg_namespace WHERE nspname = '$leftover'")" ]; then
-        die "schema $leftover already exists in $DB_NAME (from an earlier run?). Drop it first:
+schema_exists "$ACTIVE" || die "schema $ACTIVE doesn't exist in $DB_NAME: nothing to replace"
+for leftover in "$STAGING" "$PREVIOUS"; do
+    schema_exists "$leftover" && die "schema $leftover already exists in $DB_NAME (from an earlier run?). Drop it first:
   sudo -u postgres psql -d $DB_NAME -c 'DROP SCHEMA $leftover CASCADE'"
-    fi
 done
 
-STAGE_DB="evesde_stage_$$"
-TMP_DUMP=$(mktemp /tmp/evesde_new.XXXXXX.pgdump)
 SWAPPED=0
 cleanup() {
-    sudo -u postgres dropdb --if-exists "$STAGE_DB" 2>/dev/null || true
-    rm -f "$TMP_DUMP"
     # A failed run leaves the live schema untouched; remove the half-loaded copy
     if [ "$SWAPPED" -eq 0 ]; then
-        psql_site -c 'DROP SCHEMA IF EXISTS evesde_new CASCADE' 2>/dev/null || true
+        psql_site -c "DROP SCHEMA IF EXISTS $STAGING CASCADE" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
 
-log "Staging: restoring into $STAGE_DB and renaming to evesde_new"
-sudo -u postgres createdb "$STAGE_DB"
-sudo -u postgres pg_restore -d "$STAGE_DB" --no-owner --no-privileges --exit-on-error < "$DUMP"
-sudo -u postgres psql -d "$STAGE_DB" -v ON_ERROR_STOP=1 -q -c 'ALTER SCHEMA evesde RENAME TO evesde_new'
-sudo -u postgres pg_dump -d "$STAGE_DB" -n evesde_new -Fc > "$TMP_DUMP"
-sudo -u postgres dropdb "$STAGE_DB"
-
-log "Loading evesde_new into $DB_NAME (owned by $DB_USER)"
-sudo -u postgres pg_restore -d "$DB_NAME" --no-owner --no-privileges --role="$DB_USER" --exit-on-error < "$TMP_DUMP"
-log "Analyzing evesde_new"
-sudo -u postgres vacuumdb -q -d "$DB_NAME" --analyze-only --schema=evesde_new
+log "Loading $STAGING into $DB_NAME (owned by $DB_USER)"
+# pg_restore -n restores the schema's objects but not the schema itself
+psql_site -c "CREATE SCHEMA $STAGING AUTHORIZATION \"$DB_USER\""
+sudo -u postgres pg_restore -d "$DB_NAME" -n "$STAGING" --no-owner --no-privileges --role="$DB_USER" --exit-on-error < "$DUMP"
+log "Analyzing $STAGING"
+sudo -u postgres vacuumdb -q -d "$DB_NAME" --analyze-only --schema="$STAGING"
 
 # Every table and column the live schema has must still be there, or site queries would break
 MISSING=$(psql_site -c "
-    SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = 'evesde'
+    SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = '$ACTIVE'
     EXCEPT
-    SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = 'evesde_new'
+    SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = '$STAGING'
     ORDER BY 1")
-if [ -n "$MISSING" ]; then
-    die "the new build lacks tables/columns the live schema has; not swapping:
+[ -z "$MISSING" ] || die "the new build lacks tables/columns the live schema has; not swapping:
 $MISSING"
-fi
-ADDED=$(psql_site -c "
-    SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = 'evesde_new'
-    EXCEPT
-    SELECT table_name || '.' || column_name FROM information_schema.columns WHERE table_schema = 'evesde'
+
+NEW_TABLES=$(psql_site -c "
+    SELECT tablename FROM pg_tables WHERE schemaname = '$STAGING'
+    EXCEPT SELECT tablename FROM pg_tables WHERE schemaname = '$ACTIVE'
+    ORDER BY 1")
+NEW_COLUMNS=$(psql_site -c "
+    SELECT n.table_name || '.' || n.column_name
+    FROM information_schema.columns n
+    JOIN pg_tables t ON t.schemaname = '$ACTIVE' AND t.tablename = n.table_name
+    WHERE n.table_schema = '$STAGING'
+      AND NOT EXISTS (SELECT 1 FROM information_schema.columns o WHERE o.table_schema = '$ACTIVE'
+                      AND o.table_name = n.table_name AND o.column_name = n.column_name)
     ORDER BY 1")
 
 log "Swapping schemas"
-psql_site <<'SQL'
+psql_site <<SQL
 BEGIN;
-ALTER SCHEMA evesde RENAME TO evesde_old;
-ALTER SCHEMA evesde_new RENAME TO evesde;
+ALTER SCHEMA $ACTIVE RENAME TO $PREVIOUS;
+ALTER SCHEMA $STAGING RENAME TO $ACTIVE;
 COMMIT;
 SQL
 SWAPPED=1
 
-BUILD=$(psql_site -c 'SELECT "buildNumber" FROM evesde."sdeInfo" LIMIT 1' 2>/dev/null || echo "unknown")
-log "Done: $DB_NAME.evesde is now SDE build $BUILD"
-if [ -n "$ADDED" ]; then
-    log "New columns: $(echo "$ADDED" | tr '\n' ' ')"
-fi
+BUILD=$(psql_site -c "SELECT \"buildNumber\" FROM $ACTIVE.\"sdeInfo\" LIMIT 1" 2>/dev/null || echo "unknown")
+log "Done: $DB_NAME.$ACTIVE is now SDE build $BUILD"
+[ -z "$NEW_TABLES" ]  || log "New tables: $(echo "$NEW_TABLES" | paste -sd' ')"
+[ -z "$NEW_COLUMNS" ] || log "New columns: $(echo "$NEW_COLUMNS" | paste -sd' ')"
 
 if [ "$DROP_OLD" -eq 1 ]; then
-    psql_site -c 'DROP SCHEMA evesde_old CASCADE'
-    log "Dropped evesde_old"
+    psql_site -c "DROP SCHEMA $PREVIOUS CASCADE"
+    log "Dropped $PREVIOUS"
 else
-    log "Previous schema kept as evesde_old. To undo:"
-    echo "  sudo -u postgres psql -d $DB_NAME -c 'BEGIN; ALTER SCHEMA evesde RENAME TO evesde_failed; ALTER SCHEMA evesde_old RENAME TO evesde; COMMIT;'"
+    log "Previous build kept as $PREVIOUS. To undo:"
+    echo "  sudo -u postgres psql -d $DB_NAME -c 'BEGIN; ALTER SCHEMA $ACTIVE RENAME TO evesdefailed; ALTER SCHEMA $PREVIOUS RENAME TO $ACTIVE; COMMIT;'"
     log "Once the site looks right:"
-    echo "  sudo -u postgres psql -d $DB_NAME -c 'DROP SCHEMA evesde_old CASCADE'"
+    echo "  sudo -u postgres psql -d $DB_NAME -c 'DROP SCHEMA $PREVIOUS CASCADE'"
 fi

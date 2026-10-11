@@ -42,10 +42,10 @@ final class ShipInfoService
                    a."displayName" AS name, a."unitID" AS unit_id,
                    COALESCE(ta."valueFloat", ta."valueInt") AS value,
                    COALESCE(c."categoryName", '') AS category, u."displayName" AS unit
-            FROM evesde."dgmTypeAttributes" ta
-            JOIN evesde."dgmAttributeTypes" a ON a."attributeID" = ta."attributeID"
-            LEFT JOIN evesde."dgmAttributeCategories" c ON c."categoryID" = a."categoryID"
-            LEFT JOIN evesde."eveUnits" u ON u."unitID" = a."unitID"
+            FROM evesdeactive."dgmTypeAttributes" ta
+            JOIN evesdeactive."dgmAttributeTypes" a ON a."attributeID" = ta."attributeID"
+            LEFT JOIN evesdeactive."dgmAttributeCategories" c ON c."categoryID" = a."categoryID"
+            LEFT JOIN evesdeactive."eveUnits" u ON u."unitID" = a."unitID"
             WHERE ta."typeID" = ? AND a.published = true AND COALESCE(a."displayName", '') <> ''
             ORDER BY a."attributeID"
         SQL);
@@ -75,7 +75,7 @@ final class ShipInfoService
         }
 
         // Mass, volume and cargo live on the type itself
-        $stmt = $this->db->prepare('SELECT mass, volume, capacity FROM evesde."invTypes" WHERE "typeID" = ?');
+        $stmt = $this->db->prepare('SELECT mass, volume, capacity FROM evesdeactive."invTypes" WHERE "typeID" = ?');
         $stmt->execute([$typeId]);
         if ($type = $stmt->fetch()) {
             $groups['Structure'] = array_merge($groups['Structure'] ?? [], [
@@ -107,9 +107,9 @@ final class ShipInfoService
         $stmt = $this->db->prepare(<<<SQL
             SELECT tr."skillID" AS skill_id, tr.bonus, tr."bonusText" AS text,
                    u."displayName" AS unit, k."typeName" AS skill_name
-            FROM evesde."invTraits" tr
-            LEFT JOIN evesde."eveUnits" u ON u."unitID" = tr."unitID"
-            LEFT JOIN evesde."invTypes" k ON k."typeID" = tr."skillID"
+            FROM evesdeactive."invTraits" tr
+            LEFT JOIN evesdeactive."eveUnits" u ON u."unitID" = tr."unitID"
+            LEFT JOIN evesdeactive."invTypes" k ON k."typeID" = tr."skillID"
             WHERE tr."typeID" = ?
             ORDER BY tr."skillID" < 0, tr."skillID" = -2, tr."skillID", tr.importance, tr."traitID"
         SQL);
@@ -142,7 +142,7 @@ final class ShipInfoService
      */
     public function getDescription(int $typeId): ?string
     {
-        $stmt = $this->db->prepare('SELECT description FROM evesde."invTypes" WHERE "typeID" = ?');
+        $stmt = $this->db->prepare('SELECT description FROM evesdeactive."invTypes" WHERE "typeID" = ?');
         $stmt->execute([$typeId]);
         $text = preg_replace('/<br\s*\/?>/i', "\n", (string) $stmt->fetchColumn());
         $text = trim(html_entity_decode(strip_tags((string) $text)));
@@ -159,9 +159,9 @@ final class ShipInfoService
     {
         $stmt = $this->db->prepare(<<<SQL
             SELECT t."typeID" AS type_id, t."typeName" AS name, e."durationDays" AS days, e.hidden AS event_only
-            FROM evesde."expertSystemShipTypes" s
-            JOIN evesde."expertSystems" e ON e."typeID" = s."typeID"
-            JOIN evesde."invTypes" t ON t."typeID" = e."typeID"
+            FROM evesdeactive."expertSystemShipTypes" s
+            JOIN evesdeactive."expertSystems" e ON e."typeID" = s."typeID"
+            JOIN evesdeactive."invTypes" t ON t."typeID" = e."typeID"
             WHERE s."shipTypeID" = ? AND t.published = true AND e.retired = false
             ORDER BY e.hidden, t."typeName"
         SQL);
@@ -182,9 +182,9 @@ final class ShipInfoService
     {
         $stmt = $this->db->prepare(<<<SQL
             SELECT p."typeID" AS blueprint_id, b."typeName" AS blueprint_name, a.time
-            FROM evesde."industryActivityProducts" p
-            JOIN evesde."invTypes" b ON b."typeID" = p."typeID"
-            LEFT JOIN evesde."industryActivity" a ON a."typeID" = p."typeID" AND a."activityID" = 1
+            FROM evesdeactive."industryActivityProducts" p
+            JOIN evesdeactive."invTypes" b ON b."typeID" = p."typeID"
+            LEFT JOIN evesdeactive."industryActivity" a ON a."typeID" = p."typeID" AND a."activityID" = 1
             WHERE p."productTypeID" = ? AND p."activityID" = 1
             ORDER BY b.published DESC, p."typeID"
             LIMIT 1
@@ -200,10 +200,10 @@ final class ShipInfoService
         $stmt = $this->db->prepare(<<<SQL
             SELECT p."typeID" AS source_id, s."typeName" AS source_name, a.time,
                    pr.probability, p.quantity AS runs
-            FROM evesde."industryActivityProducts" p
-            JOIN evesde."invTypes" s ON s."typeID" = p."typeID"
-            LEFT JOIN evesde."industryActivity" a ON a."typeID" = p."typeID" AND a."activityID" = 8
-            LEFT JOIN evesde."industryActivityProbabilities" pr
+            FROM evesdeactive."industryActivityProducts" p
+            JOIN evesdeactive."invTypes" s ON s."typeID" = p."typeID"
+            LEFT JOIN evesdeactive."industryActivity" a ON a."typeID" = p."typeID" AND a."activityID" = 8
+            LEFT JOIN evesdeactive."industryActivityProbabilities" pr
                    ON pr."typeID" = p."typeID" AND pr."activityID" = 8 AND pr."productTypeID" = p."productTypeID"
             WHERE p."productTypeID" = ? AND p."activityID" = 8
             ORDER BY pr.probability DESC NULLS LAST, s."typeName"
@@ -229,7 +229,7 @@ final class ShipInfoService
         // fall back to the internal name, which marks most (not all) China-only skins
         $hasVisibility = (bool) $this->db->query(<<<SQL
             SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'evesde' AND table_name = 'skins' AND column_name = 'visibleTranquility'
+            WHERE table_schema = 'evesdeactive' AND table_name = 'skins' AND column_name = 'visibleTranquility'
         SQL)->fetchColumn();
         $onTranquility = $hasVisibility
             ? 's."visibleTranquility" = true'
@@ -237,10 +237,10 @@ final class ShipInfoService
 
         $stmt = $this->db->prepare(<<<SQL
             SELECT s."skinID" AS skin_id, t."typeName" AS license_name, l.duration
-            FROM evesde."skinShip" ss
-            JOIN evesde.skins s ON s."skinID" = ss."skinID"
-            JOIN evesde."skinLicense" l ON l."skinID" = s."skinID"
-            JOIN evesde."invTypes" t ON t."typeID" = l."licenseTypeID"
+            FROM evesdeactive."skinShip" ss
+            JOIN evesdeactive.skins s ON s."skinID" = ss."skinID"
+            JOIN evesdeactive."skinLicense" l ON l."skinID" = s."skinID"
+            JOIN evesdeactive."invTypes" t ON t."typeID" = l."licenseTypeID"
             WHERE ss."typeID" = ? AND {$onTranquility} AND t.published = true
             ORDER BY s."skinID", l.duration
         SQL);
@@ -273,8 +273,8 @@ final class ShipInfoService
     {
         $stmt = $this->db->prepare(<<<SQL
             SELECT m."materialTypeID" AS type_id, t."typeName" AS name, m.quantity
-            FROM evesde."industryActivityMaterials" m
-            JOIN evesde."invTypes" t ON t."typeID" = m."materialTypeID"
+            FROM evesdeactive."industryActivityMaterials" m
+            JOIN evesdeactive."invTypes" t ON t."typeID" = m."materialTypeID"
             WHERE m."typeID" = ? AND m."activityID" = ?
             ORDER BY m."materialTypeID"
         SQL);
@@ -283,8 +283,8 @@ final class ShipInfoService
 
         $stmt = $this->db->prepare(<<<SQL
             SELECT s."skillID" AS skill_id, t."typeName" AS name, s.level
-            FROM evesde."industryActivitySkills" s
-            JOIN evesde."invTypes" t ON t."typeID" = s."skillID"
+            FROM evesdeactive."industryActivitySkills" s
+            JOIN evesdeactive."invTypes" t ON t."typeID" = s."skillID"
             WHERE s."typeID" = ? AND s."activityID" = ?
             ORDER BY t."typeName"
         SQL);
@@ -336,7 +336,7 @@ final class ShipInfoService
         }
         $placeholders = implode(',', array_fill(0, count($typeIds), '?'));
         $stmt = $this->db->prepare(
-            "SELECT \"typeID\", \"typeName\" FROM evesde.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
+            "SELECT \"typeID\", \"typeName\" FROM evesdeactive.\"invTypes\" WHERE \"typeID\" IN ({$placeholders})"
         );
         $stmt->execute($typeIds);
         return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
