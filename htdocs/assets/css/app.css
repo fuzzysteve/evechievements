@@ -908,6 +908,8 @@ img { display: block; max-width: 100%; }
 }
 .bonus-list__item:last-child { border-bottom: none; }
 .bonus-list__amount { font-family: var(--font-mono); color: var(--color-amber); text-align: right; }
+.ship-description { grid-column: 1 / -1; max-width: 75ch; font-size: 0.85rem; line-height: 1.6; color: var(--color-text); }
+.ship-description p + p { margin-top: 0.75rem; }
 
 /* ── Site search ─────────────────────────────────────────── */
 .visually-hidden {

@@ -80,7 +80,8 @@
     {% for l in 1..5 %}{% set tabs = tabs|merge([{id: 'level-' ~ l, query: 'level=' ~ l, label: 'MASTERY ' ~ roman[l] ~ ((mine.loaded ?? false) and l <= mine.mastery ? ' ✓' : '')}]) %}{% endfor %}
     {% set tabs = tabs|merge([
         {id: 'attributes', query: 'tab=attributes', label: 'ATTRIBUTES'},
-        {id: 'bonuses',    query: 'tab=bonuses',    label: 'BONUSES'},
+        {id: 'bonuses',     query: 'tab=bonuses',     label: 'BONUSES'},
+        {id: 'description', query: 'tab=description', label: 'DESCRIPTION'},
     ]) %}
     <nav class="level-tabs" role="tablist">
         {% for t in tabs %}
@@ -173,6 +174,18 @@
         {% else %}
         <p class="empty-state">This ship has no bonuses listed.</p>
         {% endfor %}
+    </section>
+
+    <section class="cert-grid" id="panel-description" role="tabpanel" aria-labelledby="tab-description"{{ active != 'description' ? ' hidden' }}>
+        {% if description %}
+        <article class="cert-card ship-description">
+            {% for para in description|split("\n\n") %}
+            <p>{{ para|trim|nl2br }}</p>
+            {% endfor %}
+        </article>
+        {% else %}
+        <p class="empty-state">This ship has no description.</p>
+        {% endif %}
     </section>
 
 </div>

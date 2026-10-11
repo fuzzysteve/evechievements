@@ -22,7 +22,7 @@ final class ShipController
         private readonly SkillService    $skills
     ) {}
 
-    /** Ship page: /ship/{typeID}, tabs ?level={1-5} (mastery), ?tab=attributes, ?tab=bonuses */
+    /** Ship page: /ship/{typeID}, tabs ?level={1-5} (mastery), ?tab=attributes, ?tab=bonuses, ?tab=description */
     public function show(int $typeId): void
     {
         $ship = $this->shipTree->getShip($typeId);
@@ -36,7 +36,7 @@ final class ShipController
         if ($level < 1 || $level > 5) {
             $level = 1;
         }
-        $tab = in_array($_GET['tab'] ?? '', ['attributes', 'bonuses'], true) ? $_GET['tab'] : null;
+        $tab = in_array($_GET['tab'] ?? '', ['attributes', 'bonuses', 'description'], true) ? $_GET['tab'] : null;
 
         $flySkills    = $this->shipTree->getFlyRequirements($typeId);
         $requirements = $this->shipTree->getMasteryRequirements($typeId);
@@ -48,6 +48,7 @@ final class ShipController
             'active'       => $tab ?? "level-{$level}",
             'attributes'   => $this->shipInfo->getAttributes($typeId),
             'bonuses'      => $this->shipInfo->getBonuses($typeId),
+            'description'  => $this->shipInfo->getDescription($typeId),
             'fly_skills'   => $flySkills,
             'requirements' => $requirements,
         ]);

@@ -136,6 +136,19 @@ final class ShipInfoService
         return $result;
     }
 
+    /**
+     * The ship's in-game description as plain text: <br> becomes a line break, and showinfo links,
+     * <url=…>, <i> and <b> markup are dropped. Paragraphs are separated by blank lines.
+     */
+    public function getDescription(int $typeId): ?string
+    {
+        $stmt = $this->db->prepare('SELECT description FROM evesde."invTypes" WHERE "typeID" = ?');
+        $stmt->execute([$typeId]);
+        $text = preg_replace('/<br\s*\/?>/i', "\n", (string) $stmt->fetchColumn());
+        $text = trim(html_entity_decode(strip_tags((string) $text)));
+        return $text === '' ? null : $text;
+    }
+
     private function formatValue(float $value, ?int $unitId, ?string $unit, array $typeNames): string
     {
         return match ($unitId) {
